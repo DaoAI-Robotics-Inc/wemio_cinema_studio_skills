@@ -93,18 +93,20 @@ curl -s -X POST "${API}/api/cinema-studio/generate-scene" \
 ```
 
 ### 生成视频（Multi-Shot）
+**注意：Multi-shot 模式下顶层 `prompt` 和每个 shot 的 prompt 互斥。Kling 只使用每个 shot 的独立 prompt，顶层 prompt 被忽略。每个 shot prompt 必须自包含完整的场景信息。**
+
 ```bash
 curl -s -X POST "${API}/api/cinema-studio/generate-video" \
   -H "Authorization: Bearer ${TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
-    "prompt": "<丰富的场景描述 with @CharacterName>",
+    "prompt": "<占位，multi-shot 模式下被忽略>",
     "first_frame_url": "<url>",
     "cast_element_ids": ["<element_ids>"],
     "multi_shots": true,
     "multi_prompt": [
-      {"prompt": "<action + event + emotion>", "duration": 5, "camera_movement": "zoom_in"},
-      {"prompt": "<action + event + emotion>", "duration": 5, "camera_movement": "dolly_out"}
+      {"prompt": "<自包含：环境+角色动作+情绪+特效，~430 chars>", "duration": 5, "camera_movement": "zoom_in"},
+      {"prompt": "<自包含：环境+角色动作+情绪+特效，~430 chars>", "duration": 5, "camera_movement": "dolly_out"}
     ],
     "video_genre": "<genre>",
     "speed_ramp": "auto",

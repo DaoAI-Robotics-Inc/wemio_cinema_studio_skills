@@ -152,8 +152,14 @@ Sliding window: Clip N refs = `[character_img, clip_(N-2)_frame, clip_(N-1)_fram
 
 ## Phase 4 — Video Generation
 
-### Prompt 分工（关键）
-| 由参数控制（不写进 prompt） | 由 prompt 承载（必须写） |
+### Multi-shot prompt 规则（关键！）
+**Multi-shot 模式下，顶层 `prompt` 和 `multi_prompt` 中每个 shot 的 prompt 是互斥的。Kling 只使用每个 shot 的独立 prompt，顶层 prompt 被忽略。** 因此：
+- 每个 shot prompt 必须**自包含** — 包含完整的场景环境、角色动作、情绪、特效
+- 不要依赖顶层 prompt 提供上下文，Kling 看不到它
+- 顶层 `prompt` 字段仍需填写（API 要求），但内容不影响生成结果
+
+### Prompt 分工
+| 由参数控制（不写进 prompt） | 由 shot prompt 承载（必须写） |
 |---|---|
 | 运镜 → `camera_movement` | 角色动作（具体物理运动） |
 | 色调/氛围 → `video_genre` | 情绪变化（从 A 到 B） |
