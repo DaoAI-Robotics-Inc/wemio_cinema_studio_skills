@@ -29,13 +29,23 @@ ln -s "$(pwd)/wemio_cinema_studio_skills/skills/script-to-video" .claude/skills/
 
 ### 2. Get your API Key
 
+**Option A: From the Settings page (recommended)**
+
 1. Go to [app.wemio.com](https://app.wemio.com) and log in
-2. Navigate to **Settings** → **API Keys**
-3. Create a new key — save it somewhere safe (shown only once)
+2. Click your avatar (bottom-left) → **Settings**
+3. Scroll down to **API Keys** section
+4. Click **Create Key**, give it a name, and click create
+5. **Copy the key immediately** — it's only shown once!
 
 The API key format is `pk_xxxxxxxx...` and does not expire unless you set an expiry.
 
-Alternatively, you can use a JWT token from browser DevTools (Local Storage → `wemio_token`), but it expires every 24 hours.
+**Option B: JWT token (temporary, 24h)**
+
+1. Log in to [app.wemio.com](https://app.wemio.com)
+2. Open browser DevTools (F12) → **Application** → **Local Storage** → `https://app.wemio.com`
+3. Copy the value of `wemio_token`
+
+JWT tokens expire every 24 hours. API keys are recommended for automation.
 
 ### 3. Run the skill
 
@@ -77,10 +87,12 @@ Both API keys (`pk_*`) and JWT tokens are supported. API keys are recommended fo
 
 ### Managing API Keys via API
 
+You can also manage keys programmatically:
+
 ```bash
-# Create a key
+# Create a key (authenticate with JWT or existing API key)
 curl -X POST https://app.wemio.com/api/api-keys \
-  -H "Authorization: Bearer <your_jwt_token>" \
+  -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{"name": "my-bot"}'
 # Returns: {"raw_key": "pk_...", ...}  ← save this!
