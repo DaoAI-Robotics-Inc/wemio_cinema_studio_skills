@@ -1,5 +1,7 @@
 # Wemio Cinema Studio Skills
 
+[中文文档](README_CN.md)
+
 Claude Code skills for automating video production via the [Wemio Cinema Studio](https://app.wemio.com) API.
 
 ## Available Skills
