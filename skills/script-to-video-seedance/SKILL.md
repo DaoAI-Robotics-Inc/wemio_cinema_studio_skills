@@ -829,6 +829,32 @@ c02 v2 观察到的新问题:**Shot 1 Woman 走在站台上,Shot 2 Seedance 把 
 
 **对策**:prompt 里**显式重复终态锁定**("Julian 在整个 clip 中面朝 RIGHT,身体不得朝镜头","车门在整个 clip 中保持敞开,不得反复开关 glitch"),大写强调。
 
+### Seedance 的创意 override(c03 观察)
+
+c03 实测发现 Seedance 会**主动替换某些 framing 指令**成更"电影感"的构图。
+这些是可观察的 override 边界:
+
+**1. MACRO 窄 framing 很难强制**:prompt 写"MACRO 俯视 / 只有双手和 folio /
+无背景",Seedance 自行扩成**wide 环境镜头**(Julian 全身 + 站台 + 列车都
+入画)。它判断"只有手+物体" 太不叙事,擅自改成更宽的构图。
+- **对策**:强 negative 语言,把默认选项堵死。比如:
+  - "整个画面没有任何 wall / ceiling / floor / body above elbow / character
+    face / background environment"
+  - "画面占比:物体 70%,手 30%,背景 0%,纯黑 void 环绕"
+  - "This shot is a pure object study,no narrative context"
+
+**2. 切镜类型 = Seedance 自由发挥**:你说"hard cut"它可能给你 dissolve /
+cross-fade / 叠化;你说"cross-fade"它可能硬 cut。Seedance **过渡风格不是
+可靠指令**,要接受它自己的选择。c03 的 shot 2→3 过渡是瞳孔+环境 dissolve
+叠化(非常好看,但 prompt 里其实没要求)。
+- **结论**:你能控切**位置和次数**(通过 subject diversity),控不了**过渡风格**
+
+**3. 精细视觉效果 ≈ 忽略**:瞳孔里反射某物、某光打在某人脸上某角度、物体
+上某特定 texture 变化 — 这类"子像素级"视觉需求 Seedance 基本不执行。
+c03 要"列车尾灯红色 bokeh 反射在瞳孔"Seedance 没做。
+- **结论**:Seedance 出的是**场景级**合成,不是**像素级**视觉效果。要眼睛
+  反光这种精细效果,要么后期合成,要么放弃
+
 ### 真要多 shot 又不敢赌 Seedance,备选路径
 
 **1 shot = 1 次 `/generate-video`** + ffmpeg concat(用 `cinema-studio-ops` skill):
