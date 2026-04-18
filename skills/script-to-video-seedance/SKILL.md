@@ -770,6 +770,45 @@ Phoenix Cinema Studio API 对 prompt 有 **2500 字符硬上限**(Pydantic
 5. **风格锁** — 句末挂全片 style lock(`"cinematic handheld realism, 35mm
    film grain, desaturated teal-amber grade"`)
 
+### 写 drama/noir 类 prompt 的参考模板(corpus-derived)
+
+在写 drama/noir/悬疑/短剧 类 prompt 之前,**先查** `examples-drama.md` —
+从 1936 条社区 prompt 里抽出的 62 条 drama/noir 相关 prompt,按 keyword
+命中排序,前 15 条是最相关的。读 2-3 条同类型的,再写自己的。
+
+**corpus-derived 主流模板**(drama 类最常见格式,不是 `0-X 秒:`):
+
+```
+【风格】<genre + 视觉描述符,e.g. "90年代香港文艺片,复古胶片感,抽帧,忧郁">
+【时长】15秒
+【角色】<brief cast描述,1-2 句>
+
+[00:00-00:05] 镜头1:<shot 标题,e.g. 透过玻璃的窥视>
+  场景: ...
+  动作: ...
+  光影 / 情绪: ...
+  【对白口型指导】如有对白
+
+[00:05-00:10] 镜头2:<shot 标题>
+  ...
+
+[00:10-00:15] 镜头3:<shot 标题>
+  ...
+```
+
+#### 关键观察(corpus vs 我们的《末班车》v5 实测)
+
+| 维度 | corpus drama 主流 | 我们之前的写法 |
+|---|---|---|
+| 时间戳格式 | `[00:XX-00:YY] 镜头N:`(75 次命中) | `0-X 秒:`(corpus 仅 8 次命中) |
+| prompt 字数 | 500-800(王家卫 771,爆款 600) | **2200-2500(3x bloat)** |
+| 每 shot 核心 | **情绪节拍/戏剧转折/视觉诗意** | 景别变化(这是 c04 失败原因) |
+| negation 数 | 0-2 处 | 5+ 处(R16 反复锁) |
+
+**长度 bloat 教训**:我们因为被 bug 咬过几次,prompt 里写了很多 negation/锁定。corpus 里 drama 类 prompt 短得多,模型反而听话。**先短写一版,Gemini 审出什么问题再加锁,别一开始就 over-hedge**。
+
+**每 shot 核心是情绪节拍不是景别**。c04 失败证明:同角色静态换景别不算切镜。每 shot 要有**清晰的戏剧动作**(决绝转身 / 死拽手腕 / 拔剑蓄力)或**视觉诗意**(电话亭窥视 / 嘴唇微动 / 雨夜背影)。
+
 ### 单 clip 内部多 shot 的校准配方(基于《末班车》v5 五次实测)
 
 Seedance 2.0 **能**在单 `/generate-video` 内触发真切镜,但对 prompt

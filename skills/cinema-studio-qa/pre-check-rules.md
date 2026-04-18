@@ -609,12 +609,87 @@ toward P unless prompt explicitly says otherwise.
 
 ---
 
+## R17. Post-Exchange Prop State Reset (MAJOR)
+
+**Added after:** User observation during《末班车》v5 dogfood — "女的把文件
+给了男的,但是手里还有文件,拿着离开了"(Woman hands file to man, but she
+still has the file in her hands and walks away with it). Classic bug: prop
+ownership is not "transferred" in Seedance's latent state after an
+exchange — the character who "originally had" the prop continues carrying
+a phantom copy in subsequent shots.
+
+### What
+
+When a prop exchange happens (A → B) mid-clip or cross-clip, Seedance's
+default is to preserve BOTH characters' established "has-prop" state. To
+prevent a duplicate object / phantom prop:
+
+**Every exchange must be declared as a DOUBLE state update, not a single
+transfer.** Both sides need explicit post-exchange state language.
+
+### Three failure modes
+
+1. **Duplicate object (clone)**: Seedance spawns a second folio for the
+   giver in the next shot because "Woman has folio" is a stable trait.
+2. **Ref-image tug**: if `reference_image_urls` shows the giver holding
+   the prop, every shot pulls the giver back to "has prop" state.
+3. **Training bias**: "woman + bag walking" is so common that the model
+   defaults to re-attaching props to their established holder.
+
+### Detection checklist
+
+For every clip/prompt that contains a prop exchange verb (`hands over,
+gives, passes, transfers, drops, delivers, throws, catches, takes,
+accepts, releases, grabs`):
+
+1. Is the **receiver's post-exchange state** explicit?("Julian's hands
+   now firmly grip the folio at waist" ✓ vs just "Julian accepts it" ✗)
+2. Is the **giver's post-exchange state** explicit?("Woman's hands
+   empty, hanging at her sides" ✓ vs just "Woman turns away" ✗ — she'll
+   turn away WITH a phantom copy)
+3. Does the next shot after the exchange open with the **giver explicitly
+   empty-handed / prop-free**?
+4. Does `reference_image_urls` show the giver with the prop? If so,
+   explicit negation is mandatory:"Woman no longer holds anything, her
+   hands are empty, she does not carry anything out of the train car."
+
+### Fix template
+
+Replace single-sided transfer language with double state update:
+
+> ❌ "Woman 递出 folio,Julian 接过。Woman 转身回到车门。"
+>
+> ✅ "Woman 递出 folio,Julian 双手从 Woman 手中接过并稳稳握住;**Woman
+> 双手完全松开,folio 已不在她手中,她的双手空空如也,自然垂在身侧**。
+> Woman 转身空手回到车门。"
+
+For cross-clip exchanges, the next clip's first shot must open with:
+
+> "Woman 此时双手空空,folio 已转移到 Julian 手中并仍在他手中。Woman 不再
+> 持有任何物品。"
+
+### Bonus: phantom-prop spread through ref_image_urls
+
+If you use the exchange clip's tail frame as ref for the next clip, AND
+the tail frame shows the prop ambiguously positioned (e.g. between both
+pairs of hands), Seedance may re-spawn it for the wrong person next clip.
+**Choose tail frames where prop ownership is visually unambiguous**, or
+use an earlier frame where the transfer has clearly completed.
+
+### Severity
+
+Major. Creates a "magic duplicate" effect that's instantly noticeable to
+viewers and breaks narrative logic (the whole point of the handoff was
+the transfer!). Often paired with action_completion failures.
+
+---
+
 ## Future rules (to add as new bugs surface)
 
-- R17: Lighting direction consistency across shots
-- R18: Sound / dialogue reference sanity
-- R19: Genre-tone consistency
-- R20: Dynamic range / contrast warnings
+- R18: Lighting direction consistency across shots
+- R19: Sound / dialogue reference sanity
+- R20: Genre-tone consistency
+- R21: Dynamic range / contrast warnings
 
 ## Rule library evolution log
 
@@ -623,4 +698,5 @@ toward P unless prompt explicitly says otherwise.
 | v1 | R1-R10 | 《末班车》v1 (10×5s) observed bugs + general AI video theory |
 | v2 | R11-R14 added | 《末班车》v2 (4×15s) Gemini audit findings |
 | v3 | R15 added | User insight: parallel submission vs visual-dependency chaining. Validates via《末班车》v2's 30s/45s boundary bugs being caused by parallel-only generation |
-| **v4** | **R16 added** | **《末班车》v5 c02 v2 dogfood: cross-shot temporal break due to relative direction + ref_image tug. Needed explicit absolute positioning + negation rule.** |
+| v4 | R16 added | 《末班车》v5 c02 v2 dogfood: cross-shot temporal break due to relative direction + ref_image tug. Needed explicit absolute positioning + negation rule. |
+| **v5** | **R17 added** | **User observation during《末班车》v5: Woman hands file to man but still carries file out. Seedance doesn't "update" prop ownership after exchange — phantom duplicate prop persists on giver. Needs double-state-update language.** |
