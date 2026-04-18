@@ -21,6 +21,8 @@
 | 2.3 | 失败后读了 `seedance_registration_error` 吗? | 命名空间码 `ark.face_policy` 等 | 不看原因盲目重试 |
 | 2.4 | 角色图是不是"太像真人"? | 风格化 / 明显 AI 感 | 真实人脸 → `ark.face_policy` 拒 |
 | 2.5 | 每个要用的参考图都注册了吗? | 每个 element 的 `seedance_registration_status == "done"` | 未注册的图会被降级成 plain URL 传 Ark,可能被拒 |
+| 2.6 | **每张图进合规库了吗?** | 所有将作 frame / ref 的 URL 都 `POST /api/compliance/check-by-url` 并轮询到 `compliant`(character / location / scene 首帧 / extract-frame 尾帧,全部) | 没进合规库 → 生成时 `real_person` 等拒 |
+| 2.7 | fl2v 帧图是不是无人景? | 纯环境 / 空镜 / 物体 | fl2v 帧图有写实人物就算合规过也会被拒(实测);角色转场改走 ref2v 或尾帧提链 |
 
 ## Phase 3 检查:首帧构图
 
@@ -28,7 +30,7 @@
 |---|---|---|---|
 | 3.1 | ref2v clip 是否一定要首帧? | 不一定。精确要求开场才给,否则让 Seedance 从 refs 自由开局 | 所有 clip 都强行做首帧,浪费 credit 且限制 Seedance 发挥 |
 | 3.2 | fl2v clip 是否同时有首+尾帧? | 两帧都给 | 只给首帧 → 后端路由到 ref2v(首帧 + refs),不是你想要的首尾插值 |
-| 3.3 | continuous clip 是否用前序尾帧? | `/extract-frame` `which=last` 拿到 URL 做 `first_frame_url` | 为 continuous 生成独立首帧,画面跳变 |
+| 3.3 | continuous clip 是否用前序尾帧? | `/extract-frame` `which=last` 拿到 URL → **过一遍合规库** → 做 `first_frame_url` | 尾帧没过合规 → 生成时 `real_person` 拒 |
 | 3.4 | 首帧构图是否为运动留空间? | 角色往右跑,首帧角色在左三分线 | 角色居中 → 运动方向两边都撞边 |
 | 3.5 | 多角色首帧是否传入了所有角色 ref 图? | `ref_image_urls` 含所有出场角色 + 地点 | 只传主角,Seedance 乱生成配角 |
 

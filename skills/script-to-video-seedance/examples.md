@@ -197,8 +197,49 @@ for e in data['elements']:
 **Seedance 注册和 Kling 的关键区别:**
 - 单图合规检查,**没有三面图拆分**,**没有 needs_review** 状态
 - 失败码是 `ark.*`(Kling 是 `kling.*`)
-- 成功后写的字段是 `volcanic_asset_id` + `volcanic_asset_group_id`(不是
-  `kling_element_id`)
+- 成功后后端写的字段是 `volcanic_asset_id` + `volcanic_asset_group_id`
+  (注意:不在 `/elements` API 响应里,只在后端 DB)
+
+---
+
+## 合规库登记(Seedance 专属前置步骤,Kling 不需要)
+
+**每张将用作 `first_frame_url` / `last_frame_url` / `reference_image_urls`
+的图 URL,都要先进合规库**,否则 Ark 生成时会拒 `real_person` 等错误码。
+`/register/seedance` 只绑定 element 和 asset_id,**不代替**合规库登记。
+
+### Step 1:提交合规检查
+```bash
+# 注意前缀!是 /api/compliance/ 不是 /api/cinema-studio/
+curl -s -X POST "${API}/api/compliance/check-by-url" \
+  -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" \
+  -d "{\"file_url\":\"${IMAGE_URL}\"}"
+# → {"asset_id":"...","status":"pending","ark_asset_id":null,"error":null,"checked_at":null}
+```
+
+### Step 2:轮询到 compliant
+```bash
+for i in $(seq 1 20); do
+  sleep 10
+  S=$(curl -s "${API}/api/compliance/status/${ASSET_ID}" \
+    -H "Authorization: Bearer ${TOKEN}")
+  echo "$S"
+  if echo "$S" | grep -qE '"status":"(compliant|failed)"'; then break; fi
+done
+# 期望:pending → compliant(通常 30-90s,最多 3 分钟)
+```
+
+### 失败处理
+- `ark.face_policy`:图疑似真人 / 敏感主体 → 换风格化角色图
+- `ark.invalid_resolution`:分辨率不够 → 重生成 2K
+- `ark.content_policy`:内容违规 → 改 prompt 重生成
+- `ark.timeout`:合规超时 → 稍后重试
+
+### 什么时候跑合规库
+- **Phase 2 Step 7 之后**:所有 character / location element 图过一遍
+- **Phase 3 首帧生成后**:每个首帧 URL 过一遍
+- **Phase 4 extract-frame 后**:尾帧 URL 用作下一 clip 首帧前过一遍
+- **简言之:任何要传给 `/generate-video` 作 frame / ref 的图,都要过**
 
 ---
 
@@ -405,10 +446,12 @@ curl -s -X POST "${API}/api/cinema-studio/crop-ultrawide" \
   "aspect_ratio": "16:9",
   "style_lock": "cinematic handheld realism, visible grain",
   "ref_map": {
-    "图片1": {"name": "Elena", "element_id": "...", "url": "...", "volcanic_asset_id": "..."},
-    "图片2": {"name": "Arthur", "element_id": "...", "url": "...", "volcanic_asset_id": "..."},
-    "图片3": {"name": "Factory", "element_id": "...", "url": "...", "volcanic_asset_id": "..."}
+    "图片1": {"name": "Elena", "element_id": "...", "url": "...", "compliance_asset_id": "..."},
+    "图片2": {"name": "Arthur", "element_id": "...", "url": "...", "compliance_asset_id": "..."},
+    "图片3": {"name": "Factory", "element_id": "...", "url": "...", "compliance_asset_id": "..."}
   },
+  // compliance_asset_id: 从 POST /api/compliance/check-by-url 返回的 asset_id,
+  // 不是后端 Ark 的 volcanic_asset_id(后者不暴露)
   "clips": [
     {
       "id": "c1",
