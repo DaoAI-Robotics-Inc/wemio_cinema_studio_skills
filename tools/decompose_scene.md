@@ -60,6 +60,62 @@ adjacent beats'**. Choose from categories:
 (subject + framing, or subject + angle). Merely changing zoom on same
 subject at same angle = collapse risk.
 
+**HARDER RULE (from jazz + drama failures 2026-04-18):** Two adjacent
+shots **cannot share the same character as their primary subject**,
+even with drastically different framings. Observed collapse patterns:
+
+- jazz test: "singer face ECU" + "singer silhouette walking" → merged into
+  one continuous camera move. Both shots have singer as main subject.
+- drama test: "woman at Starbucks" + "woman with Man umbrella" → merged.
+  Both shots had woman present as primary.
+- c04: "Julian hand" + "Julian face" + "Julian wide" → merged. All three
+  had Julian as main subject.
+
+**Valid adjacencies (observed working in c02/c03):**
+- character shot → pure-object macro → different-character shot
+- character A → no-character-scene → character A (OK if B separated them)
+- body part → whole scene → different body part
+
+**If your scene naturally focuses on one character the whole time**
+(e.g. a monologue, a waiting scene, a single emotional beat),
+**accept it as a single-shot composition**. Don't force cuts. A
+beautiful single take is better than a collapsed "multi-shot" that
+renders as one camera anyway. See 末班车 c04 — we accepted single-shot
+isolation shot and it worked aesthetically.
+
+### Step 2b: Subject-break insertion pattern
+
+If scene has 3 beats but all beats share the same character as subject,
+insert a "subject-break" shot (body part macro OR no-character view OR
+prop macro) between them:
+
+Before:
+- Shot 1: Julian face ECU (looking at folio)
+- Shot 2: Julian opens folio (wide)
+- Shot 3: Julian reacts (ECU)
+→ likely merges (all Julian)
+
+After:
+- Shot 1: Julian face ECU (looking at folio)
+- Shot 2: Macro insert on folio opening (only hands + folio, NO FACE)  ← subject break
+- Shot 3: Julian eye ECU reacts
+→ subject diversity: face / hands+obj / eye — likely cuts cleanly
+
+### Step 2c: Establishment-shot override (known Seedance behavior)
+
+Seedance has strong priors for "establishing shots" on certain cinematic
+archetypes: singer at mic, detective on platform, hero on cliff, etc.
+Requesting ECU on these archetypes tends to get auto-upgraded to wide.
+
+Mitigation if you need a tight framing on an archetype:
+- Frame the shot AROUND the character, not ON them — "tight close-up of
+  the microphone with singer's lips barely visible at top edge" beats
+  "ECU of singer's face"
+- Add strong negative-ish language: "no full body, no stage visible, no
+  audience, no background environment, only skin/lips/eyelashes in frame"
+- Accept ~60% success rate on tight framing of archetypes; fall back to
+  the wide if Seedance overrides
+
 ### Step 3: Write per-shot blocks in the genre's preferred format
 
 Pick format based on genre:

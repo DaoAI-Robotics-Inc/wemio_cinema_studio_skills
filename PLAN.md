@@ -17,19 +17,50 @@ loop for multi-clip productions.
 
 ---
 
-## Testing policy (self-iteration)
+## Testing policy (self-iteration, dual-judgment)
 
-- **Gemini 3.1 Pro is the first-line QA judge** for every generated clip
-  and every end-to-end run. Its verdict (`pass / needs_rework /
-  major_rewrite`) gates the auto-fix loop.
-- **Escalate to user only when** I disagree with Gemini's verdict or
-  when Gemini's feedback is ambiguous. Otherwise act on Gemini's
-  `fix_suggestion` directly and retry.
-- **Budget cap per iteration:** 3 auto-fix attempts per clip, and an
-  overall production budget cap of 2× the initial generation cost.
-  Stop and ask user if hit.
-- **Progress logging:** each iteration logs prompt + Gemini verdict to
-  `/tmp/<production_id>/iteration_log.md` so decisions are auditable.
+**Dual-judgment pipeline** — Claude Opus 4.7 has multimodal vision and
+Gemini 3.1 Pro is an independent video-understanding model. Using both
+in tandem, not one as the sole judge:
+
+1. **Claude vision first**: before calling Gemini, extract 4-7 frames
+   across the clip (including shot boundaries) and read them myself.
+   Score the clip on: shot cuts present? subject diversity per shot?
+   axis consistency? prop state tracked? style match? critical physical
+   fails? Build my own verdict.
+2. **Gemini second**: call `audit_clip.sh` for an independent technical
+   audit against the intended.txt.
+3. **Reconcile**:
+   - Both agree PASS → accept, move on
+   - Both agree needs rework → apply Gemini's fix_suggestion, retry
+   - **They disagree**:
+     - Usually Claude is closer to user intent (understands aesthetic
+       context like "a single continuous wide shot is fine for drama
+       contemplative moments"), Gemini over-applies "did the prompt
+       literally match what got rendered" and flags harmless deviations.
+     - Claude's verdict wins UNLESS I can't clearly explain why I
+       differ.
+     - Escalate to user only when Claude vision + Gemini both disagree
+       on something load-bearing, OR when I can't confidently resolve.
+4. **Budget cap per iteration:** 3 auto-fix attempts per clip, and an
+   overall production budget cap of 2× the initial generation cost.
+   Stop and ask user if hit.
+5. **Progress logging:** each iteration logs the prompt + Claude's
+   verdict + Gemini's verdict + final resolution to
+   `/tmp/<production_id>/iteration_log.md`.
+
+**Why dual-judgment matters (observed 2026-04-18):**
+- Drama test: Gemini flagged "bag items magically appear" as major
+  action_completion fail. Claude vision on frame t=2s saw oranges
+  mid-air with water splash — physics actually rendered. Gemini was
+  wrong about this specific issue.
+- Gemini flagged "single continuous shot" as critical. That's
+  technically true but drama single-takes are an artistic choice
+  (Cuarón / Kar-wai), not a defect. Claude vision contextualizes.
+- Gemini correctly flagged: style override (anime → photoreal),
+  directional-entry bug, phantom-prop bug. Gemini is reliable on
+  concrete violations.
+- Claude vision is reliable on aesthetic intent + physics verification.
 
 ---
 
