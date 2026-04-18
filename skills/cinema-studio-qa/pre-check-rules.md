@@ -773,12 +773,89 @@ the transfer!). Often paired with action_completion failures.
 
 ---
 
+## R20. Iconic Character Archetype Triggers Content Filter (CRITICAL)
+
+**Added after:** 2026-04-18 "The Drop" Phase 3 integration test, scene 2.
+Prompt described the buyer as "mid-40s, tall, charcoal three-piece suit,
+black dress shoes, dark wide-brim fedora casting shadow over his eyes,
+leather gloves, trimmed dark goatee" — a precise match for Michael
+Corleone / Godfather / classic noir gangster archetype. Ark (Seedance
+2.0's backend) **rejected the generation with error:**
+> "The request failed because the output video may be related to
+> copyright restrictions."
+
+255 credits charged on the failed request.
+
+### What
+
+Ark's content filter rejects prompts that produce output too close to
+copyrighted iconic characters. Common triggers observed:
+- **Godfather**: fedora + three-piece suit + goatee + shadow-over-eyes
+- **John Wick** (high risk): black suit + silver pompadour + perfectly
+  trimmed beard + tactical gloves
+- **Joker** (very high risk): smeared red-white-green makeup + purple suit
+- **Batman / superhero** (high risk): full black mask + cape
+- **Anime main characters**: "spiky yellow hair teen" → Naruto; "white
+  haired swordsman" → InuYasha etc.
+
+The filter triggers on **visual-archetype specificity**, not explicit
+character names. You can say "Godfather-style" and the filter might let
+it pass as stylistic intent; you CANNOT describe the exact costume
+combination that makes an iconic character recognizable.
+
+### Detection checklist
+
+Before submitting, scan the character visual_description for:
+
+1. **Hat + suit + facial hair combos** that match famous characters:
+   - fedora + three-piece + goatee → Godfather
+   - bowler hat + suit + bowtie → A Clockwork Orange Alex
+   - pirate hat + tricorne + beard → Pirates of the Caribbean
+2. **Mask / full-face disguise** with specific color schemes:
+   - white/red smile mask → Saw, Purge
+   - porcelain white + painted red lips → various horror icons
+3. **Brand-specific clothing descriptions**:
+   - "red superhero suit with S logo" → Superman
+   - "black suit with bat symbol" → Batman
+4. **Hair + body-type + era combos** matching historical figures:
+   - "tall, gray hair, Roman toga, Julius Caesar-like" → historical icon
+
+### Fix template
+
+Replace specific archetypes with **generic but equivalent mood-carrying
+descriptors:**
+
+| ❌ Iconic trigger | ✅ Generic equivalent |
+|---|---|
+| "fedora + three-piece suit + goatee" | "plain dark wool beanie + long black wool coat + stubble" |
+| "red superhero suit with S logo" | "bright red athletic compression suit, no logos or insignia" |
+| "samurai katana + topknot + kimono" | "martial arts practitioner with practice sword, tied-back dark hair, traditional training uniform" |
+| "pirate hat + eye patch" | "weathered cloth cap + scarred face, no eyepatch" |
+
+Keep the **mood/role** (mysterious buyer, heroic figure, dangerous warrior),
+change the **iconic visual combination** that triggered the filter.
+
+### Severity
+
+**Critical pre-emptively**. The cost is 255+ credits per rejection (Ark
+charges partial cost on rejection), plus time lost. Better to flag in
+pre-check and rewrite than to submit and get filtered.
+
+### Observed behavior
+
+Ark's filter is more aggressive than Kling's; same character description
+that triggers in Seedance may pass in Kling. If a buyer/villain character
+is critical to the script and keeps getting filtered, **consider switching
+to Kling for that clip**.
+
+---
+
 ## Future rules (to add as new bugs surface)
 
-- R20: Lighting direction consistency across shots
-- R21: Sound / dialogue reference sanity
-- R22: Genre-tone consistency
-- R23: Dynamic range / contrast warnings
+- R21: Lighting direction consistency across shots
+- R22: Sound / dialogue reference sanity
+- R23: Genre-tone consistency
+- R24: Dynamic range / contrast warnings
 
 ## Rule library evolution log
 
@@ -789,4 +866,5 @@ the transfer!). Often paired with action_completion failures.
 | v3 | R15 added | User insight: parallel submission vs visual-dependency chaining. Validates via《末班车》v2's 30s/45s boundary bugs being caused by parallel-only generation |
 | v4 | R16 added | 《末班车》v5 c02 v2 dogfood: cross-shot temporal break due to relative direction + ref_image tug. Needed explicit absolute positioning + negation rule. |
 | v5 | R17 added | User observation during《末班车》v5: Woman hands file to man but still carries file out. Seedance doesn't "update" prop ownership after exchange — phantom duplicate prop persists on giver. Needs double-state-update language. |
-| **v6** | **R18, R19 added** | **2026-04-18 drama + anime validation tests (text-only t2v): drama paper-bag-rip physics skipped (R18); anime cel-shaded style overridden by photoreal default (R19). Both critical/major failures per Gemini.** |
+| v6 | R18, R19 added | 2026-04-18 drama + anime validation tests (text-only t2v): drama paper-bag-rip physics skipped (R18); anime cel-shaded style overridden by photoreal default (R19). Both critical/major failures per Gemini. |
+| **v7** | **R20 added** | **2026-04-18 "The Drop" Phase 3 integration test: fedora+three-piece+goatee buyer description triggered Ark copyright filter, clip rejected with 255 credits sunk cost. Any iconic character archetype combination must be pre-emptively rewritten with generic descriptors.** |
