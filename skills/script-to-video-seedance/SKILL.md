@@ -58,6 +58,46 @@ the whole production.
 > - `film-language.md` — 景别、运镜、构图、对话规则、场景连贯策略(通用电影语言,provider 无关)
 > - `examples.md` — Prompt 示例、JSON 示例、curl 模板、注册流程、模式选择
 > - `checklist.md` — Director's Review Checklist + 三轮生成策略
+> - **`examples-<genre>.md`** — 1936 条 corpus 按类型分桶后的 TOP-12 样本(drama/anime/action/horror/romance/mv/ugc/commercial/fantasy_scifi)。**写 prompt 前 Read 2-3 条同类型的参考样本**,不要凭空瞎猜格式。
+
+## Genre → 模板路由(corpus-derived)
+
+下表是从 1936 条社区 prompt 抽出的每类型风格画像。写新 prompt 时:
+1. 先判断 genre(用户明说 > Claude 从剧本推断 > 默认 drama)
+2. `Read skills/script-to-video-seedance/examples-<genre>.md` 看 2-3 条高票样本
+3. 按该类型的 `preferred_format` + `char_length_median` + `signature_camera` + `signature_lighting` 写
+4. 不要跨 genre 混用格式(比如 drama 片里用 anime 的 `Cut to ECU` 散文式可能水土不服)
+
+| Genre | N | 字数 P25-中-P75 | 主流格式 | 典型 shot 数 | 标志 camera moves | 标志 lighting/mood |
+|---|---|---|---|---|---|---|
+| drama | 411 | 263-459-904 | cut_to_english(16) / bracket `[00:XX-YY]`(11) | 3 | pan, close-up, tracking, ots, slow motion | fog, neon, grain, mist |
+| action | 390 | 248-510-1202 | cut_to_english(21) / 镜头N(14) | 4 | 特写, ots, pan, close-up, tracking, 定格, 环绕, 手持 | neon, mist, 高对比, 霓虹 |
+| fantasy_scifi | 275 | 252-465-1087 | 镜头N(13) / bracket(11) / cut_to(11) | 4 | 特写, pan, close-up, ots, 手持, 环绕, tracking, 推进 | neon, fog, 霓虹, grain |
+| anime | 106 | 145-420-866 | 0-X秒(2) / [Xs-Ys](2) | 4 | pan, 特写, close-up, tilt, ots, 环绕, dolly | neon, bokeh, golden hour, 高对比 |
+| mv | 95 | 226-435-963 | 0-X秒:(6) / cut_to(4) | 4 | 特写, pan, close-up, 环绕, 中景, 定格, ots, 推进 | 霓虹, 复古, 夜景, 自然光 |
+| horror | 84 | 180-338-893 | bracket `[00:XX-YY]`(7) / Shot N(7) | 3 | tracking, pan, wide shot, 特写, close-up, 慢动作 | fog, grain, desaturated, teal |
+| ugc | 82 | 263-440-705 | bracket(12) / 0-X秒:(12) | 3 | 手持, 特写, 定格, 中景, handheld | 霓虹, 自然光, bokeh |
+| commercial | 67 | 232-448-807 | 切到 中文(6) / 镜头N(4) | 3 | 特写, 环绕, close-up, pan, 定格, 推进 | 霓虹, mist, neon, teal |
+| romance | 33 | 241-295-719 | 0-X秒:(5) / 切到 中文(2) | 3 | 特写, 手持, close-up, 跟拍, 定格 | 霓虹, 自然光, 冷色调, 夜景 |
+
+### 关键结论(替换 skill 早期错误断言)
+
+1. **字数中位数 295-510**,不是我们《末班车》v5 用的 2200-2500。**drama 459 / action 510 / romance 295**。3-5x bloat 被打脸,下次目标 500-800 字够了。
+2. **drama 主流不是 `0-X 秒:`(冒号),是 `Cut to` + `[00:XX-YY]` 方括号**。Chinese colon `0-X秒:` 其实是 mv / romance / ugc 偏好。
+3. **每类型典型 shot 数 3-4** — 我们之前的"2-3 shot 甜蜜区"结论偏保守,4 shot 对 action / anime / fantasy 是主流。
+4. **ugc 类的手持运镜标志**非常明显(手持 23 / handheld 13)—— 做 vlog 式内容要用"手持 / handheld camera shake" 当锚定词。
+5. **lighting 通用词**:neon / fog / grain 横扫所有类型,是 Seedance 训练集的"电影感基线"。
+
+### genre 路由决策树
+
+```
+if user explicitly declares genre → use that
+elif Claude classifier on script detects strong signal → use detected
+elif no strong signal → default to "drama"
+else → ask user
+```
+
+Claude 分类用简单关键词 + 语义判断。script 里如果含打斗/追逐/武术/格斗 → action;含魔法/机甲/末日/外星 → fantasy_scifi;含浪漫/告白/暧昧/校园 → romance;含鬼/僵尸/恐怖/灵异 → horror;含 MV/歌词/rap → mv;含广告/品牌/开箱/带货 → commercial/ugc;含 anime/MAPPA/cel-shaded/漫画风 → anime。
 
 ## 执行纪律
 
