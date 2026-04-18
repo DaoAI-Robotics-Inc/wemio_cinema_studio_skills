@@ -54,7 +54,8 @@ the whole production.
 > prompt,跟用户商量**整部片改用 Kling skill** 重拍。
 
 > **Reference files (read on demand, not preloaded):**
-> - `film-language.md` — 景别、运镜、构图、对话规则、场景连贯策略
+> - `camera-vocabulary.md` — **Seedance 2.0 电影感核心** — 80 个精确运镜术语(按情绪/动作/特效分类),写每个 shot 时从这里挑一个
+> - `film-language.md` — 景别、运镜、构图、对话规则、场景连贯策略(通用电影语言,provider 无关)
 > - `examples.md` — Prompt 示例、JSON 示例、curl 模板、注册流程、模式选择
 > - `checklist.md` — Director's Review Checklist + 三轮生成策略
 
@@ -630,17 +631,77 @@ POST /generate-video
 **注意**:fl2v 模式下就算传 `reference_image_urls` 也会被丢弃,角色一致性
 完全靠首尾帧承载。
 
-### Prompt 策略(Seedance 特有)
+### Prompt 策略(Seedance 2.0 — 精确运镜术语为核心)
 
-| 项 | 怎么写 |
-|---|---|
-| **运动物理** | 前置!"fast tracking kick, weight transfers to back foot, wet concrete splashes" |
-| **运镜** | 写文字:"camera follows from behind handheld, rapid pan" |
-| **对白** | `@图片1 says: "台词"` — Seedance 会自动生成对应口型 |
-| **环境声** | 提一下氛围:"distant thunder, neon buzz, footsteps echo" — Seedance 会合成 |
-| **角色一致性** | 句子里用 `@图片N` 而不是描述角色("@图片1 dodges left" 不是 "the short-haired woman dodges left") |
-| **动作节奏** | 用动词序列:"ducks, pivots, counter-punches, recovers stance" |
-| **style lock** | 句末挂全片风格句 |
+**最重要的一条铁律**:Seedance 2.0 电影感的核心杠杆是**用精确的运镜名词**
+(不是泛泛的 "camera moves slowly" / "slow push" 这种形容词拼凑)。
+
+❌ `camera slowly moves around the subject`(泛泛)
+✅ `子弹时间镜头`(命名调用,Seedance 在 training 里学过具体语义)
+
+❌ `intense tracking shot for fight`(泛泛)
+✅ `打斗跟随镜头`(具体命名)
+
+❌ `tense close-up showing fear`(泛泛)
+✅ `瞳孔放大镜头` 或 `眼抖特写镜头`(具体命名)
+
+**写每个 shot 的 prompt 时:先从 `camera-vocabulary.md` 挑一个对应的
+运镜术语**,再组装其他信息。80 个精选术语按情绪/动作/特效分类。
+
+### 基础 prompt 结构(精确运镜 + 四层信息)
+
+一条 shot prompt 里组装 5 块信息,**运镜术语必须具体命名**:
+
+1. **精确运镜名词**(必写) — 从 vocabulary 挑,放在句子靠前位置
+2. **主体 + 动作** — `@图片N` 引用 + 具体动词序列("ducks, pivots,
+   counter-punches")
+3. **环境 + 光线** — 在哪,光怎么打。**光照是高杠杆,一行写好的 lighting
+   比十个形容词管用**(`"practical light from overhead fluorescent, cool
+   teal shadows on wet tile"`)
+4. **对白**(如有) — `@图片1 says: "台词"`,Seedance 自动 lip-sync
+5. **风格锁** — 句末挂全片 style lock(`"cinematic handheld realism, 35mm
+   film grain, desaturated teal-amber grade"`)
+
+### 单 clip 内部多 shot 的组织方式
+
+Seedance 2.0 单次 `/generate-video`(≤15s)在模型内部会按 prompt 自主切
+2-3 个 shot。写法:**每个 shot 用一个具体运镜术语起头,动作过渡用自然时序
+连接**(`"then"` / `"as he turns"` / `"a beat later"` / `"紧接着"`)。
+
+```
+<场景 + 光线 + style>. 缓慢推入镜头:@图片1 crouches on right side of frame,
+checking watch. Then 急停定格镜头 as he lowers his wrist —
+列车从 frame 左侧滑入,headlights sweeping across wet tiles, brakes hiss
+with steam. Doors hiss open on the left.
+```
+
+**`[0s-Xs]` 时间戳 + `Cut to` 硬转场词是可选的**(有些第三方 2.0 guide 主张
+这套;但 Seedance 2.0 用户社区实战经验显示:精确运镜术语 + 自然时序连接
+已经够,时间戳反而偶尔让模型死板按秒剪)。有特别精细的节奏要求时再加。
+
+### 3-shot 稳妥公式
+
+遇到想不出具体运镜时的默认回路:
+**Wide establishing(后退揭示镜头)→ Medium action(推进亲密镜头)→
+Close-up detail/reaction(瞳孔放大镜头 或 眼抖特写镜头)**
+
+每 shot ~5s,总 15s。这是电影语法最稳的三镜头结构。
+
+### 一 shot 一运镜原则
+
+**一个 shot 只用一个运镜术语** — 两个叠起来模型听谁的不确定,出片
+会混乱。需要多个运镜效果就拆成多个内部 shot(一个 clip 内 2-3 个,各用
+自己的运镜)。
+
+### 空间轴锁死(180° 规则)
+
+Seedance 跨 shot / 跨 clip 会"重掷骰子"选角色朝向,导致观众感觉乱跳。
+**每个 shot prompt 里都要显式写**:
+- "@图片1 stands on the right third of frame"
+- "train enters from the LEFT side of frame"
+- "maintain 180° axis throughout"
+
+没写 = Seedance 每 shot 自主重排画面朝向 = 断轴。
 
 ### 跨 clip 角色一致性(Seedance 的核心能力)
 

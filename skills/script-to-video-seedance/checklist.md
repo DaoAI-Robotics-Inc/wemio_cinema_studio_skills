@@ -7,7 +7,8 @@
 | # | 检查项 | 通过标准 | 常见错误 |
 |---|---|---|---|
 | 1.1 | 剧本类型是否适合 Seedance? | 动作 / 运动 / 物理 / MV / 短视频 / 中文原生 prompt = 适合 | 对白密集 / 需要多镜头叙事切换 → 换 `script-to-video-kling` |
-| 1.2 | 每 clip 是否顶满 15s 并内部安排 2-3 shot? | Prompt 里写清 "first / then / finally" 时序,Seedance 内部自主切 WS→MS→CU 等 | 把 60s 拆 10 个 5s 短 clip → 浪费 Seedance 内部切镜能力 + 跨 clip 断轴乱跳 |
+| 1.2 | 每 clip 是否顶满 15s 并内部安排 2-3 shot? | Prompt 里用自然时序("then / finally / 紧接着")连接,Seedance 内部自主切 | 把 60s 拆 10 个 5s 短 clip → 浪费 Seedance 内部切镜能力 + 跨 clip 断轴乱跳 |
+| 1.2c | 每个 shot 是否用了精确运镜术语? | 从 `camera-vocabulary.md` 挑 — `子弹时间镜头`、`推进亲密镜头`、`打斗跟随镜头` 等命名调用;不是 "camera slowly moves in" 泛泛描述 | 泛泛形容词堆砌 → Seedance 给 generic AI 风,没电影感 |
 | 1.2b | 一个戏剧单元是否打包在同一 clip? | 同场景同角色的连续动作放同一 clip,靠 prompt 描述内部切镜 | 拆成独立 clip → 每 clip 空间轴乱跳 |
 | 1.3 | Clip 间过渡类型是否标注? | continuous / scene_jump / angle_change / reaction 明确 | 没标 → 执行时不知该走尾帧提链还是新首帧 |
 | 1.4 | 每个 clip 的 mode 是否决定? | `ref2v` 或 `fl2v` 二选一 | 两种都塞 → fl2v 赢,ref_* 被丢弃 |
@@ -42,7 +43,8 @@
 |---|---|---|---|
 | 4.1 | 运动物理细节是否前置? | "weight transfers, splashes, impact" 开头 | 动作描述模糊,Seedance 自己瞎发挥 |
 | 4.2 | prompt 是否足够丰富? | 包含 5 层:物理 + 运镜(文字)+ 动作 + 对白 + 声音/质感 | 只写 `@图片1 fights @图片2` |
-| 4.3 | 运镜是否写进文字? | "camera follows behind handheld" | 传 `camera_movement: "dolly_in"` 枚举 — Seedance 忽略 |
+| 4.3 | 运镜是否用了 camera-vocabulary 里的精确术语? | `子弹时间镜头` / `打斗跟随镜头` / `瞳孔放大镜头` 等具体命名 | 用 `"camera slowly moves"` 泛泛形容词(没电影感)或传 `camera_movement` 枚举(Seedance 忽略) |
+| 4.3b | 每个 shot 是否只配 1 个运镜? | 一个命名运镜 + 动作描述 | 叠 2-3 个运镜 → Seedance 听不清,混乱 |
 | 4.4 | 对白是否用正确格式? | `@图片1 says: "台词"` | 写 "Elena says" — Seedance 不识别名字 |
 | 4.5 | `@图片N` 是否对应 `reference_image_urls` 顺序? | index+1 映射 | 顺序变了,角色错乱 |
 | 4.6 | 不该传的字段是否没传? | **没有** multi_shots / multi_prompt / cast_element_ids / negative_prompt | 传了 Seedance 全忽略,但容易造成 prompt 混乱 |

@@ -87,36 +87,113 @@ Single bare bulb flickers overhead. Cinematic handheld realism.
 
 ---
 
-**⭐ 推荐模式:15s 内部多镜头(Seedance 自主切 shot)**
+**⭐ 推荐模式:15s 内部多镜头(精确运镜术语驱动)**
 
-这才是 Seedance 的"精品剧打开方式"。一次 15s 的 `/generate-video` 里
-写清楚 2-3 个 shot 的时序,模型内部自主切。以下为一个完整戏剧单元:
+Seedance 2.0 精品剧打开方式 — 一次 15s 的 `/generate-video` 里,
+**每个内部 shot 用一个 camera-vocabulary 里的精确运镜术语起头**,
+自然时序连接 2-3 个 shot。
 
+### 用精确运镜名词(电影感核心杠杆)
+
+**❌ 泛泛形容(第一版错误示例):**
 ```
-Subway platform at 2am. CAMERA STARTS WIDE showing the empty station,
-@图片1 standing alone on the right third of frame, checking his
-wristwatch. Breath visible in cold air. THEN camera slowly dollies in
-over 5 seconds to a MEDIUM SHOT of @图片1, keeping him on the right
-third. FINALLY as he lowers his wrist, CUT to a new WIDE ANGLE: a
-dark train glides in from the left side of frame, headlights sweeping
-across the wet tiles, brakes hissing with a burst of white steam.
-Doors hiss open on the left. Maintain 180° axis throughout — train
-always on left, @图片1 always on right. Cinematic handheld realism,
-35mm film grain, desaturated teal-amber.
+Camera STARTS WIDE showing the empty station, THEN camera slowly dollies
+in to a MEDIUM SHOT, FINALLY a new WIDE ANGLE as the train arrives.
+```
+这种泛泛描述,Seedance 2.0 给的是 generic AI 风,不是电影感。
+
+**✅ 精确运镜命名(推荐):**
+```
+Subway platform at 2am, practical light from flickering fluorescent
+tubes, cool teal shadows on wet tile.
+
+后退揭示镜头: @图片1 stands on the right third of frame, checking
+wristwatch, breath visible in cold air. The frame slowly expands to
+reveal the empty platform stretching behind him, trains of motion in
+distance.
+
+Then 遮挡转场镜头 as he lowers his wrist — 列车 from LEFT side of
+frame glides into station, headlights sweeping across wet tiles,
+刹车 hissing with white steam, doors hissing open on the left.
+
+Maintain 180° axis throughout — train always on LEFT, @图片1 always on
+RIGHT. Cinematic handheld realism, 35mm film grain, desaturated
+teal-amber grade.
 ```
 
-**写法要点(多镜头版 prompt):**
+每个 shot 用一个具体命名的运镜术语(后退揭示镜头 / 遮挡转场镜头),
+Seedance 2.0 在 training 里学过这些名词的具体语义,调用精准。
 
-1. **用时序关键词**:`CAMERA STARTS WIDE / THEN ... / FINALLY ...`,
-   或 `first, then, cut to, finally`,让模型知道在哪里切
-2. **显式锁住空间轴**:整条 prompt 从头到尾说清"@图片1 在 right
-   third"、"train from LEFT"、"180° axis maintained" —
-   **这是避免断轴的关键**。没写就断轴
-3. **每个 shot 给时间标记**(可选):`over 5 seconds`、`for 3-4
-   seconds`,帮助模型分配节奏
-4. **shot 之间显式动作过渡**:"as he lowers his wrist"、"then"、
-   "a beat later" — 让 Seedance 知道这是下一 shot 的 cue
-5. **shot 数量控制在 2-3 个**:过多内部切,15s 放不下会压缩
+### 几个 clip-级 prompt 示例(按戏剧类型选运镜)
+
+**悬疑对白(clip 15s,3 shot):**
+```
+Dimly-lit interrogation room, one bare bulb flickering overhead,
+practical key light carving cheekbones.
+
+推进亲密镜头: @图片1 slowly leans across the metal table toward
+@图片2 at right third of frame. "You better start from the top."
+Voice low, measured.
+
+Then 压迫俯拍镜头 on @图片2: hands clench on lap, eyes avoid direct
+contact, jaw tightens.
+
+Finally 眼抖特写镜头 on @图片2's pupils — high-frequency micro-tremor
+betraying held breath.
+
+Maintain 180° axis (@图片1 LEFT / @图片2 RIGHT). Cinematic handheld
+realism, 35mm grain.
+```
+
+**动作打斗(clip 15s,3 shot):**
+```
+Rain-soaked rooftop at night, pink and teal neon reflected in puddles,
+hard rim-light on wet leather.
+
+打斗跟随镜头: @图片1 (right third) ducks under @图片2's (left third)
+high kick, pivots on left foot, counter-strikes with spinning elbow.
+
+Then 格挡震动镜头 at impact — single violent frame shake, water
+sheet-sprays off the strike.
+
+Finally 子弹时间镜头: @图片2 suspended mid-stagger, camera orbits 90°
+around the frozen tableau, raindrops hang motionless.
+
+Maintain 180° axis. Cinematic handheld realism, high-contrast key,
+35mm grain.
+```
+
+**情感反应(clip 15s,3 shot):**
+```
+Empty living room at 3am, single lamp spilling warm amber across the
+hardwood floor, rest of frame in blue-black shadow.
+
+凝视长镜头: @图片1 sits motionless on the couch, right side of frame,
+looking down at a letter held in both hands. Fifteen seconds of absolute
+stillness.
+
+Then 瞳孔放大镜头: extreme eye macro, pupils dilate fractionally as
+something registers.
+
+Finally 后退疏远镜头: camera slowly retreats, @图片1 shrinking in the
+vast dark room, lamp fading, one tear visible at the eye's edge.
+
+Cinematic handheld realism, 35mm grain, dominant practical amber +
+deep blue-black shadows.
+```
+
+### 写法要点(精确运镜版)
+
+1. **从 `camera-vocabulary.md` 挑具体运镜术语** — 这是核心杠杆,不是可选项
+2. **每个 shot 配 1 个运镜** — 叠加 2-3 个 Seedance 会听不清
+3. **用自然时序连接**:`Then...`、`Finally...`、`紧接着...`、`as he turns...`
+   —— Seedance 2.0 认识这种过渡语
+4. **`[0s-Xs]` 时间戳是可选**,不是必写(有些第三方 guide 硬推,用户社区
+   实战反馈:精确运镜术语 + 自然时序足够,时间戳偶尔让模型死板按秒剪)
+5. **空间轴必须反复强调**:`LEFT / RIGHT / 180° axis maintained` —
+   不写就断轴
+6. **lighting 是高杠杆** — 一行写好的 lighting(practical light / rim-light /
+   key + fill + back 描述)= 十个形容词
 
 **转场 fl2v 示例(5s,首帧夜市 → 尾帧公寓):**
 ```
