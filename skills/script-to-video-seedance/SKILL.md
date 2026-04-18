@@ -9,9 +9,13 @@ description: >
 
   Parses a screenplay into characters, locations, and scenes.  Generates character
   reference images and location establishing shots, registers them via Ark
-  compliance (single-step, no review modal), produces single-shot video clips where
-  motion and physics carry the scene.  Cross-clip consistency comes from reusing
-  the SAME registered `reference_image_urls` across every clip.
+  compliance (single-step, no review modal), produces video clips where motion
+  and physics carry the scene.  Each clip is one `/generate-video` call, but
+  Seedance can **render multiple internal shots within a single generation**
+  when the prompt describes the cuts — so a single 15s clip can contain 2-3
+  shot-level beats (WS → MS → CU) that the model stitches together natively.
+  Cross-clip consistency comes from reusing the SAME registered
+  `reference_image_urls` across every clip.
 
   Use when user wants:
     - "动作片 / MV / 短视频 / 运动 / 武打 / 追逐"
@@ -21,9 +25,11 @@ description: >
     - "produce my action script", "motion-heavy script to video"
 
   Do NOT use for:
-    - Long-form narrative with multi-shot per clip needed — use
-      ``script-to-video-kling`` (Seedance is single-shot only, you'd need to split
-      each narrative beat into separate clips)
+    - Long-form narrative where you want **Phoenix's `multi_shots` /
+      `multi_prompt` API** for per-shot camera parameter control and AI
+      auto-storyboard — use ``script-to-video-kling`` (Phoenix's multi-shot
+      API fields are Kling-only; Seedance does multi-shot differently — see
+      note below)
     - Scenes that require precise parametric camera control (`dolly_in` / `orbit` /
       `jib_up` as enum values) — Seedance has no camera API, camera must be
       described in prompt text
@@ -63,13 +69,16 @@ the whole production.
 
 ### 场景分析框架
 
-Seedance 的长处是**真实物理 + 长单镜头 + 动作连贯**,不是多镜头叙事切换。
+Seedance 的长处是**真实物理 + 单次生成里自主切多个 shot + 动作连贯**。
 写 prompt 前:
 
 1. **动作质感** — 这场戏的核心物理动作是什么?重心、惯性、布料、水花、
    撞击?写进 prompt 最前面
-2. **单镜头 ≤15s 的戏剧弧** — 因为没有 multi-shot,每个 clip 必须在一个
-   连续镜头里完成一个完整的戏剧单元(开始→过程→结果)
+2. **把 15s 填满,每 clip 安排 2-3 个内部 shot** — Seedance 在一次生成
+   内部会按 prompt 的描述自主切镜头(WS → MS → CU,或建立 → 动作 →
+   反应)。**尽量每 clip 顶满 15s,少开 clip 多内部切**,比 10 个 5s 独
+   立 clip 连贯性好得多(Kling 靠 `multi_shots` 字段显式切,Seedance 靠
+   prompt 文字描述切 — 两家走不同路径,但都能出多镜头)
 3. **运镜写进文字** — 没有 `camera_movement` 枚举,想要推镜 / 跟拍 / 手持
    都靠 prompt 描述("camera follows behind, handheld" 等)
 4. **口型同步要对白** — 如果 clip 有角色说话,直接在 prompt 里写台词
@@ -77,7 +86,11 @@ Seedance 的长处是**真实物理 + 长单镜头 + 动作连贯**,不是多镜
 
 ### Seedance 2.0 Fast 要点
 
-- **Single-shot**:每 clip 就一个 shot,≤15s,没有 multi-shot 概念
+- **单次 `/generate-video` 内部自主多镜头**:每次调用是一个 15s 以内的
+  连续视频,但 Seedance 会**根据 prompt 描述在内部切 shot**(WS → MS
+  → CU 等)。API 层面**不用** `multi_shots` / `multi_prompt` 字段
+  (那是 Kling 走的路径,Phoenix 的 Ark adapter 把这俩字段禁用了),
+  而是**把 shot 序列写进 prompt 文字里**,模型自己按描述剪
 - **两种模式**(后端根据传入字段自动选):
   - **`ref2v`** — 多模态参考模式,`reference_image_urls`(≤9)/
     `ref_video_urls`(≤3)/ `ref_audio_urls`(≤3)**任一**存在时进这个模式
@@ -86,7 +99,9 @@ Seedance 的长处是**真实物理 + 长单镜头 + 动作连贯**,不是多镜
 - **强项**:真实运动物理、多模态 ref 保真(品牌色 / 指定人脸)、音素级
   lip-sync、中文 prompt 原生、动作片质感
 - **弱项**:
-  - **无 multi-shot** — 一个 clip 一个镜头
+  - **无 Phoenix multi_shots API** — 不能像 Kling 那样用 `multi_prompt`
+    数组显式控制每 shot 的 duration / camera_movement 参数;只能通过
+    prompt 文字描述让模型自己安排
   - **无运镜参数** — 所有运镜写 prompt
   - **无 negative_prompt** — 不想要的东西只能靠正向描述压制
   - **无 `cast_element_ids`** — 跨 clip 角色一致性靠 `reference_image_urls`
@@ -124,7 +139,8 @@ Seedance 的长处是**真实物理 + 长单镜头 + 动作连贯**,不是多镜
 - Auth:`Authorization: Bearer <token>`(API Key `pk_*` 或 JWT `wemio_token`)
 - Element name: **max 20 chars**;description: **max 500 chars**
 - Image prompt(generate-character / location / scene):**max 2500 chars**
-- Video prompt(single-shot,Seedance **没有** multi-shot):**max 2500 chars**
+- Video prompt:**max 2500 chars**(所有 shot 描述都塞一条 prompt 里,
+  Seedance 自己切镜头)
 - 视频字段:
   - `multi_shots` / `multi_prompt` / `cast_element_ids` / `negative_prompt` /
     `camera_movement`(作为枚举参数)→ **Seedance 全部忽略**,不要传
@@ -245,10 +261,13 @@ natural practical light, visible film grain`)。所有首帧 prompt 末尾都挂
 这一句。Seedance 的风格锁**更靠参考图一致性**,style lock 主要约束首帧。
 
 ### Step 4: Scene Coverage Plan
-Seedance 的每个 clip 是一个**独立长 take**,不是 multi-shot 组合。设计时:
-- 每个叙事节拍 → 1 个 clip(一镜到底,≤15s)
-- 内部弧:起势 → 动作高潮 → 落势
-- 情绪变化通过角色表演+运镜文字+环境动态实现,不靠切镜
+Seedance 一个 clip = 一次 `/generate-video`,**15s 内可以内部自主切 2-3
+个 shot**。设计时:
+- 一个 clip 里打包 **1 个戏剧单元 = 2-3 个内部 shot**(例如:WS 建立 →
+  MS 动作 → CU 反应)
+- 内部 shot 切换写进 prompt 文字:"Camera starts wide..., then cuts to a
+  medium shot as the character..., finally pushes in on..."
+- 每 clip 尽量顶满 15s 填满戏剧弧,少而长 > 多而短
 
 ### Step 5: Clip Packaging
 Seedance 的 clip 打包规则和 Kling **不同**:
@@ -268,9 +287,14 @@ Seedance 的 clip 打包规则和 Kling **不同**:
     给 `first_frame_url` + `last_frame_url`。**注意此模式下 ref_*
     字段全部会被丢弃**
 
-**Clip 数量由目标时长决定**:15-20s(样片)= 2 clip;30s = 3-5 clip;
-60s = 6-12 clip;120s = 15-25 clip。Seedance clip 通常比 Kling 短(没
-multi-shot 能力),clip 数会多一些。
+**Clip 数量由目标时长决定**(Seedance 每 clip 15s 满载时):
+15-20s(样片)= 1-2 clip;30s = 2 clip;60s = 4 clip;120s = 8 clip。
+每 clip 内部打包 2-3 shot,总叙事节拍数 = clip × 2.5。
+
+**⚠️ 常见错误:把 60s 拆成 10 个 5-6s 独立 clip** — 这样 Seedance 无法利用
+"单生成内自主切镜头"的能力,又让 10 个独立 generation 在空间轴 / 角色
+朝向 / 景别差异上各自为政,画面会在 clip 间乱跳。**正确做法:4 × 15s,
+每 clip 内部自主切 3 shot,共 12 叙事节拍,连贯性远好于 10 × 5s。**
 
 **Present to user for confirmation before proceeding.**
 
@@ -482,18 +506,23 @@ body: {
 ### 连贯性策略(和 Kling 一样):切镜头切景别
 
 **不要用 fl2v 硬做"一镜到底"** — 这不是影视行业的连贯性做法。精品剧
-的连贯 = 不同景别 / 角度的剪辑组接,每个 clip 是独立 ref2v 单镜头:
+的连贯 = 不同景别 / 角度的剪辑组接。Seedance **优先用单次 generate-video
+内部切 2-3 shot 打包一整个戏剧单元**,clip 间才真正切:
 
 | 叙事关系 | 做法 |
 |---|---|
-| 同场 continuous 动作 | Clip N+1 切景别(WS → MCU 或 MS → CU),每 clip 独立 ref2v,同一批 `reference_image_urls` |
-| 对白反打 | 正反肩 Clip 切换,每个独立 ref2v,场景 / 角色 ref 保持一致 |
-| 视觉冲击点(emphasis) | 插一个 ECU / Insert clip,独立 ref2v |
-| 场景切换 | 新 ref 图(换地点)进 `reference_image_urls`,独立 ref2v |
+| 同场 continuous 动作(戏剧单元内部) | **写进同一个 clip 的 prompt**:"Camera starts wide on...,then dollies in to medium as...,finally pushes in close to..."。Seedance 内部自主切 2-3 个 shot,不用开新 clip |
+| 戏剧单元切换(一段戏结束进下段) | 新 clip(新的 /generate-video),`reference_image_urls` 保持一致 |
+| 反打对白 | 可以在**同一个 clip** 里写 "Over A's shoulder showing B, then reverse to over B's shoulder showing A";Seedance 会内部切正反打 |
+| 视觉冲击点(emphasis) | Insert / ECU 可以是 clip 内部最后一个 shot,不必单开 clip |
+| 场景切换(换地点) | 必须新 clip + 新 ref 图进 `reference_image_urls` |
 
-**和 Kling 不同的是**:Kling 一个 clip 内部可以 multi-shot 切镜头;
-Seedance 不行,**每次切镜头 = 新 clip**(新的 generate-video 调用)。
-剪辑阶段把这些独立 clip 组接起来。
+**和 Kling 的对比**:
+- Kling 单 clip 内部多镜头靠 `multi_prompt` API 字段,每个 shot 有独立的
+  camera_movement / duration 参数
+- Seedance 单 clip 内部多镜头靠 **prompt 文字描述**,模型自己按语义切
+- 两家都能出多镜头叙事,路径不同。写 Seedance 的 prompt 时要**把 shot
+  序列写清楚**(用 "first..., then..., finally..." 之类的时序标记)
 
 ### 两种模式的选择
 

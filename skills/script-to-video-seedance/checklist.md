@@ -7,7 +7,8 @@
 | # | 检查项 | 通过标准 | 常见错误 |
 |---|---|---|---|
 | 1.1 | 剧本类型是否适合 Seedance? | 动作 / 运动 / 物理 / MV / 短视频 / 中文原生 prompt = 适合 | 对白密集 / 需要多镜头叙事切换 → 换 `script-to-video-kling` |
-| 1.2 | 每 clip 是否能在 ≤15s 单镜头内完成一个戏剧单元? | 有起势→动作高潮→落势 | 硬要多景别切换放进一个 clip,Seedance 会乱(它没 multi-shot) |
+| 1.2 | 每 clip 是否顶满 15s 并内部安排 2-3 shot? | Prompt 里写清 "first / then / finally" 时序,Seedance 内部自主切 WS→MS→CU 等 | 把 60s 拆 10 个 5s 短 clip → 浪费 Seedance 内部切镜能力 + 跨 clip 断轴乱跳 |
+| 1.2b | 一个戏剧单元是否打包在同一 clip? | 同场景同角色的连续动作放同一 clip,靠 prompt 描述内部切镜 | 拆成独立 clip → 每 clip 空间轴乱跳 |
 | 1.3 | Clip 间过渡类型是否标注? | continuous / scene_jump / angle_change / reaction 明确 | 没标 → 执行时不知该走尾帧提链还是新首帧 |
 | 1.4 | 每个 clip 的 mode 是否决定? | `ref2v` 或 `fl2v` 二选一 | 两种都塞 → fl2v 赢,ref_* 被丢弃 |
 | 1.5 | 整片 Style Lock 一句是否定下? | 所有首帧 prompt 末尾逐字复用 | 风格描述漂移,跨 clip 画面跳变 |
@@ -88,7 +89,7 @@
 ### 第二轮:自我审查
 - 输入:第一轮 JSON + 原始剧本原文
 - 检查:
-  - Seedance 能力约束(每 clip 单镜头 ≤15s,没有 multi-shot)
+  - Seedance 能力约束(每 clip 一次 /generate-video ≤15s,单生成内可描述多 shot 让模型自主切,但不用 Phoenix 的 multi_shots / multi_prompt 字段 — 那是 Kling 的)
   - 运动物理描述是否前置
   - `@图片N` 索引是否和 reference_image_urls 顺序一致
   - `ref_audio_urls` 是否配了视觉锚点

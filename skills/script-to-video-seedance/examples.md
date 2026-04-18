@@ -43,7 +43,16 @@ crossed, facing left. Cracked concrete floor. Cinematic handheld realism,
 visible grain.
 ```
 
-## Video Prompt 示例(Seedance 单镜头)
+## Video Prompt 示例(Seedance 15s 内部多镜头)
+
+**关键认知:** Seedance 单次 `/generate-video`(≤15s)**在模型内部会自主
+切镜头** — 用 prompt 文字描述多个 shot,Seedance 按时序剪开。
+**不要用** Phoenix 的 `multi_shots` / `multi_prompt` 字段(那是 Kling
+走的路径)。
+
+**精品剧做法:每 clip 顶 15s,内部 2-3 shot,把戏剧单元打包好。**
+
+**单 shot 示例(简单动作戏):**
 
 **简陋版(不够 — Seedance 会自己瞎发挥):**
 `"@图片1 fights @图片2"`
@@ -75,6 +84,39 @@ across the table, fingers drumming twice on the folder, locks eyes with
 measured. @图片2 stiffens, hands clench, looks down, avoids eye contact.
 Single bare bulb flickers overhead. Cinematic handheld realism.
 ```
+
+---
+
+**⭐ 推荐模式:15s 内部多镜头(Seedance 自主切 shot)**
+
+这才是 Seedance 的"精品剧打开方式"。一次 15s 的 `/generate-video` 里
+写清楚 2-3 个 shot 的时序,模型内部自主切。以下为一个完整戏剧单元:
+
+```
+Subway platform at 2am. CAMERA STARTS WIDE showing the empty station,
+@图片1 standing alone on the right third of frame, checking his
+wristwatch. Breath visible in cold air. THEN camera slowly dollies in
+over 5 seconds to a MEDIUM SHOT of @图片1, keeping him on the right
+third. FINALLY as he lowers his wrist, CUT to a new WIDE ANGLE: a
+dark train glides in from the left side of frame, headlights sweeping
+across the wet tiles, brakes hissing with a burst of white steam.
+Doors hiss open on the left. Maintain 180° axis throughout — train
+always on left, @图片1 always on right. Cinematic handheld realism,
+35mm film grain, desaturated teal-amber.
+```
+
+**写法要点(多镜头版 prompt):**
+
+1. **用时序关键词**:`CAMERA STARTS WIDE / THEN ... / FINALLY ...`,
+   或 `first, then, cut to, finally`,让模型知道在哪里切
+2. **显式锁住空间轴**:整条 prompt 从头到尾说清"@图片1 在 right
+   third"、"train from LEFT"、"180° axis maintained" —
+   **这是避免断轴的关键**。没写就断轴
+3. **每个 shot 给时间标记**(可选):`over 5 seconds`、`for 3-4
+   seconds`,帮助模型分配节奏
+4. **shot 之间显式动作过渡**:"as he lowers his wrist"、"then"、
+   "a beat later" — 让 Seedance 知道这是下一 shot 的 cue
+5. **shot 数量控制在 2-3 个**:过多内部切,15s 放不下会压缩
 
 **转场 fl2v 示例(5s,首帧夜市 → 尾帧公寓):**
 ```
