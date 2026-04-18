@@ -934,6 +934,38 @@ c03 要"列车尾灯红色 bokeh 反射在瞳孔"Seedance 没做。
 - **结论**:Seedance 出的是**场景级**合成,不是**像素级**视觉效果。要眼睛
   反光这种精细效果,要么后期合成,要么放弃
 
+**4. 2D 动画 / cel-shaded 风格 纯 t2v prompt 几乎压不住 Seedance 的真人偏好**
+— 2026-04-18 anime 类 validation test:prompt 写了 "MAPPA 级电影院线动画截图
+质感,cel-shaded,bold outlines,dynamic action lines",Seedance **出的是真人实拍**
+(金属演员 + 真实岩原),Gemini 判 critical 风格不符。Gemini 建议加
+negative prompt "photorealistic, live-action, 3D render",但 Seedance
+**不支持 negative_prompt**。
+- **对策**:要真 anime 效果,**必须用 2D anime 风格 reference_image_urls**
+  (角色 ref + 场景 ref 都 2D cel-shaded)。纯文字描述风格行不通。
+- Kling 支持 `negative_prompt`,**anime 风格短剧强烈建议切 Kling skill**
+- 如果一定用 Seedance:挂 2-3 张 anime 风参考图到 reference_image_urls,
+  prompt 里也别再写"cinematic / realistic / film grain"这种真人偏向词
+
+**5. 物理破坏动作(撕裂 / 掉落 / 冲击)Seedance 倾向跳过物理演算**
+— 2026-04-18 drama validation test:prompt 写"纸袋底部彻底湿破,物品从袋底
+倾泻而出掉落湿地砖",Seedance **直接让物品出现在地上**,跳过"袋破 → 物品
+下落 → 溅水"的物理帧。Gemini 判 major "items magically appear"。
+- **对策**:这类动作要独立一个 shot,**极近特写 + 慢动作指令**,e.g.
+  "slow motion macro insert:纸袋底部在 2 秒内逐渐被水浸透撕裂,苹果最先
+  冲破袋底缓慢下落,水花在接触瓷砖瞬间溅起"
+- 或者接受 Seedance 的"跳过物理"特点,不描述过程只描述结果状态("地面上
+  散落苹果、三明治、酸奶瓶"),这样至少不会有怪异 glitch
+
+**6. 方向性入画语言("from screen-right" / "from LEFT")不可靠**
+— 2026-04-18 drama validation test:prompt 写"Man 从 RIGHT 上方伸出伞",
+Seedance **从 LEFT 进入**。Gemini 判 major "entered from screen-left,
+contradicting prompt's screen-right instruction"。
+- **对策**:不要用"from 画面 RIGHT / LEFT"这种**相对屏幕方向**语,改用
+  **绝对场景锚点**:"从 Starbucks 玻璃门方向走来" / "从人行道朝马路的方向"
+  / "从她身后的街角走来"。Seedance 理解绝对场景位置比抽象的"屏幕左/右"
+  更准确。
+- 这条也呼应 R16:绝对位置 > 相对方向。适用所有入画 / 出画 / 方向性动作
+
 ### 真要多 shot 又不敢赌 Seedance,备选路径
 
 **1 shot = 1 次 `/generate-video`** + ffmpeg concat(用 `cinema-studio-ops` skill):

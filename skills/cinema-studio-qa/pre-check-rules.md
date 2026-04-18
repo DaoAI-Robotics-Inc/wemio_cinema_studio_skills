@@ -609,6 +609,95 @@ toward P unless prompt explicitly says otherwise.
 
 ---
 
+## R18. Physical Destruction Actions Need Dedicated Slow-Mo Shot (MAJOR)
+
+**Added after:** 2026-04-18 drama validation test where Seedance was asked
+to show a paper bag bursting and items falling; it skipped the physics
+and let the items "magically appear" on the ground. Gemini flagged this
+as `major` action_completion failure.
+
+### What
+
+Seedance 2.0 defaults to skipping frame-by-frame physics for destructive
+actions (tearing, falling, breaking, shattering, spilling). It renders
+the **before** and **after** state correctly but may skip the **during**
+action entirely. Items can teleport, bags can vanish, glass can shatter
+without arc, etc.
+
+### Detection
+
+If the scene contains any destructive action verbs, flag:
+- `撕裂 / 破 / 裂 / 碎 / 爆 / 崩 / 塌`
+- `tear / rip / break / shatter / explode / collapse`
+- `掉落 / 滑落 / 溅 / 倾泻` + multi-object
+- `drop / fall / spill / splash` + multi-object
+
+Then check: does the prompt dedicate a **slow-motion macro shot** to
+the destruction action, or is it described inline in a wide shot?
+
+### Fix template
+
+If destruction matters narratively → dedicate a shot to it:
+> ✅ "slow motion macro insert: 纸袋底部在 2 秒内逐渐被水浸透撕裂,苹果最先
+> 冲破袋底缓慢下落,水花在接触瓷砖瞬间溅起。画面只有袋子、苹果、瓷砖,无
+> 其他元素"
+
+If destruction is not narratively important → just describe the end state:
+> ✅ "地面上散落苹果、三明治、酸奶瓶,湿纸袋残片飘在附近"
+
+### Severity
+
+Major. Destruction physics is a Seedance known blind spot. Don't rely on
+inline prompt language — either dedicate a shot or skip the process.
+
+---
+
+## R19. Style Override — 2D Anime Requires Reference Images (CRITICAL for anime)
+
+**Added after:** 2026-04-18 anime validation test where prompt specified
+"MAPPA cinematic cel-shaded anime, bold outlines, dynamic action lines"
+and Seedance **rendered photorealistic live action** instead. Gemini
+flagged as `critical`.
+
+### What
+
+Seedance 2.0's training set skews heavily toward photorealistic /
+cinematic live-action output. Text-only style directives like "2D
+cel-shaded", "MAPPA vibe", "anime style", "manga aesthetic" get
+**overridden** in favor of photoreal output. Negative prompts could
+suppress this, but **Seedance doesn't support `negative_prompt`**.
+
+### Detection
+
+If prompt declares 2D / anime / cartoon / cel-shaded / manga style AND
+the skill is set to Seedance, flag `critical` pre-emptively and require
+one of these mitigations:
+
+### Mitigation paths (in priority order)
+
+1. **BEST: Switch to Kling skill.** Kling 2.0+ supports `negative_prompt`
+   and has stronger 2D style steering. Anime productions default to Kling.
+
+2. **If Seedance is required**: use 2D anime reference images in
+   `reference_image_urls`. ≥2 refs:
+   - character ref: already 2D cel-shaded rendered
+   - scene ref: already 2D anime background
+
+3. **Last resort**: stack style keywords AND remove photoreal descriptors:
+   - Add: `cel-shaded 2D animation, bold black outlines, flat color shading,
+     MAPPA studio signature, hand-drawn feel`
+   - Remove: any mention of "photorealistic", "film grain", "cinematic",
+     "realistic skin", "bokeh", "35mm", "IMAX"
+   - Accept: ~50% success rate, likely still gets photoreal
+
+### Severity
+
+Critical for anime productions. Major for stylized (watercolor / comic /
+impressionist) productions. Minor for "slightly stylized" (color grading)
+where photoreal base + LUT-like style applies.
+
+---
+
 ## R17. Post-Exchange Prop State Reset (MAJOR)
 
 **Added after:** User observation during《末班车》v5 dogfood — "女的把文件
@@ -686,10 +775,10 @@ the transfer!). Often paired with action_completion failures.
 
 ## Future rules (to add as new bugs surface)
 
-- R18: Lighting direction consistency across shots
-- R19: Sound / dialogue reference sanity
-- R20: Genre-tone consistency
-- R21: Dynamic range / contrast warnings
+- R20: Lighting direction consistency across shots
+- R21: Sound / dialogue reference sanity
+- R22: Genre-tone consistency
+- R23: Dynamic range / contrast warnings
 
 ## Rule library evolution log
 
@@ -699,4 +788,5 @@ the transfer!). Often paired with action_completion failures.
 | v2 | R11-R14 added | 《末班车》v2 (4×15s) Gemini audit findings |
 | v3 | R15 added | User insight: parallel submission vs visual-dependency chaining. Validates via《末班车》v2's 30s/45s boundary bugs being caused by parallel-only generation |
 | v4 | R16 added | 《末班车》v5 c02 v2 dogfood: cross-shot temporal break due to relative direction + ref_image tug. Needed explicit absolute positioning + negation rule. |
-| **v5** | **R17 added** | **User observation during《末班车》v5: Woman hands file to man but still carries file out. Seedance doesn't "update" prop ownership after exchange — phantom duplicate prop persists on giver. Needs double-state-update language.** |
+| v5 | R17 added | User observation during《末班车》v5: Woman hands file to man but still carries file out. Seedance doesn't "update" prop ownership after exchange — phantom duplicate prop persists on giver. Needs double-state-update language. |
+| **v6** | **R18, R19 added** | **2026-04-18 drama + anime validation tests (text-only t2v): drama paper-bag-rip physics skipped (R18); anime cel-shaded style overridden by photoreal default (R19). Both critical/major failures per Gemini.** |
