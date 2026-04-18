@@ -1,0 +1,27 @@
+{
+  "production_id": "last_stop_v3",
+  "overall_duration_sec": 60,
+  "overall_assessment": "needs_rework",
+  "clip_issues": [
+    {"clip": 2, "time_range": "15s-30s", "category": "prop_inconsistency", "severity": "minor", "description": "A plastic bottle appears next to the newspaper on the floor, which was not present in Clip 1.", "fix": "Remove bottle from prompt or inpaint erase."},
+    {"clip": 3, "time_range": "30s-45s", "category": "character_inconsistency", "severity": "major", "description": "The Detective's facial features and hair change significantly, making him look like a different actor. The folio turns into a bound paper book.", "fix": "Use consistent character ref image. Specify 'leather folio' not 'book'."},
+    {"clip": 4, "time_range": "45s-60s", "category": "prop_inconsistency", "severity": "major", "description": "The item the Detective is holding changes from an open paper book to a closed brown leather document case held under his arm.", "fix": "Ensure same folio across all clips."}
+  ],
+  "transition_issues": [
+    {"boundary": "15s", "category": "scene_element_disappears", "description": "Train exterior design changes; red M logo from Clip 1 disappears in Clip 2.", "severity": "minor", "fix_suggestion": "Use last frame of Clip 1 as image prompt for Clip 2."},
+    {"boundary": "30s", "category": "state_inconsistency", "description": "Black folio handed to Detective in Clip 2 instantly becomes open paper book in Clip 3. Woman walking back to board train is now standing still.", "severity": "major", "fix_suggestion": "Re-prompt Clip 3 with black folio, not book. Ensure Woman's action matches."},
+    {"boundary": "45s", "category": "state_inconsistency", "description": "Abrupt change in character pose and prop state. Detective goes from staring at open book to standing casually with closed brown folder under his arm.", "severity": "major", "fix_suggestion": "Bridge by having Detective close folio at start of Clip 4, or ensure he's still holding it with both hands as camera pulls back."}
+  ],
+  "cross_film_consistency": {
+    "character_appearance_stable": false,
+    "axis_maintained_across_all_clips": true,
+    "lighting_mood_consistent": true,
+    "notes": "180° rule perfectly maintained. However, severe prop morphing (folio → book → brown bag) and facial inconsistencies break continuity."
+  },
+  "_usage": {"total_tokens": 8358, "est_cost_usd": 0.0399},
+  "_regression_notes": {
+    "fixes_vs_v2": ["doors stay open through clip end (R11 action completion worked)", "handoff now completes (R11 worked)", "drone pullback now executes (R8/directing beats worked)", "no extreme folio morphing within single clip (R14 inoculation worked)"],
+    "new_issues_vs_v2": ["cross-clip prop drift (folio → book → brown bag) — caused by parallel-only generation without tail-frame chaining between c01-c02-c03-c04"],
+    "validates_rule": "R15 (chain vs parallel) — the new issues would be prevented by running c01 parallel then c02/c03/c04 serially with extract-frame chaining"
+  }
+}

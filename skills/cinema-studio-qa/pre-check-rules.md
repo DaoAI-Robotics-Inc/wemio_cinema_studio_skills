@@ -170,9 +170,184 @@ When running Phase 1 Pre-check:
 
 If any critical flagged → STOP. Show user the report, wait for approval / fix before generating.
 
-## Future rules (to add as bugs surface)
+## R11. Action Completion Must Be Explicit (CRITICAL)
 
-- R11: Lighting direction consistency across shots
-- R12: Sound / dialogue reference sanity
-- R13: Genre-tone consistency
-- R14: Dynamic range / contrast warnings
+**Added after:** v2 c02 Gemini finding — "The folio transfer fails. Woman extends folio but detective does not take it. She retains the folio and carries it back."
+
+**What**: When a prompt describes an exchange / handoff / grab / release action,
+the prompt must explicitly describe **both sides of the action completing**,
+otherwise Seedance/Kling can render the attempt without the completion.
+
+**Detect**: prompt contains exchange verbs without completion language:
+- Exchange verbs: `hands over`, `gives`, `passes`, `throws`, `catches`, `takes`,
+  `accepts`, `releases`, `grabs`, `delivers`, `递`, `交给`, `扔给`, `抓`, `接`,
+  `拿`, `给`
+- Missing completion indicators: `fully`, `completely`, `successfully`,
+  `empty hands after`, `now holds`, `finishes the exchange`, `完成交接`, `彻底`,
+  `最终`
+
+**Fix template**:
+- Before: `"She hands him the folio"`
+- After: `"She extends the folio with both hands. He reaches forward, firmly grasps it with both hands. She releases her grip, her hands go empty and drop to her sides. He now holds the folio at chest level. The handoff fully completes."`
+
+**Severity**: critical(would produce broken narrative, 50%+ failure rate observed)
+
+---
+
+## R12. Prop Persistence Across Clips (CRITICAL)
+
+**Added after:** v2 c04 Gemini finding — "The detective is no longer holding the folio. His hands appear empty." (despite Clip 3 ending with him holding it)
+
+**What**: If a prop was introduced in an earlier clip and the character is
+supposed to still have it, each subsequent clip's prompt must **explicitly
+describe the prop as still in their possession** (Seedance doesn't assume
+cross-clip prop persistence).
+
+**Detect**: cross-clip semantic check:
+- In Clip N: does the prompt mention a character receiving / holding / picking
+  up a prop (`folio`, `glass`, `weapon`, `key`, `letter`, `phone`, `gun`, etc.)?
+- In Clip N+1 / N+2...: is the character still "supposed to" have it (no explicit
+  "drops it" / "hands back" between)?
+- If yes: does the prompt for Clip N+1+ mention the prop still in hand / on
+  character?
+- If not → flag
+
+**Fix template**: Add to Clip N+1 prompt opening:
+```
+@图片1 still holds the [prop] in his [right/left] hand from the previous scene
+```
+
+**Severity**: critical (prop vanishing is one of the most jarring AI video
+failures; instantly breaks suspension of disbelief)
+
+---
+
+## R13. Shot-Type Precision — Framing Must Match Declared Vocabulary (MAJOR)
+
+**Added after:** v2 c03 Gemini finding — "Shot 1 is a medium shot of the detective instead of the requested macro insert of his hands opening the folio"
+
+**What**: If prompt uses a named shot-type vocabulary term that implies tight
+framing, the supporting description must NOT contain wider-framing language
+that contradicts it.
+
+**Detect**:
+- Named tight-framing terms: `微距缓推镜头` / `瞳孔放大镜头` / `insert shot` /
+  `macro` / `extreme close-up` / `ECU` / `眼泪滑落镜头`
+- Wider-framing contradictions in same shot: mentions of the character's
+  full body, standing, walking, wide environment, other characters in frame
+→ flag
+
+**Fix template**: either escalate the wording (`EXTREME macro close-up filling
+the entire frame on hands ONLY, no face visible, no body visible`) or
+re-categorize to a wider vocab term.
+
+**Severity**: major (produces "medium shot labeled as macro" — content
+technically present but framing wrong)
+
+---
+
+## R14. AI Physical-Artifact Inoculation (MAJOR)
+
+**Added after:** v2 c03 Gemini finding — "The leather folio morphs unnaturally as it opens, turning into a thick block of stiff pages"
+
+**What**: Seedance (and most AI video models) have known failure modes for
+specific objects/actions. Prompt should include inoculation language for
+high-risk elements.
+
+**Known failure-prone elements and their inoculation phrases:**
+
+| Risk object / action | Inoculation language |
+|---|---|
+| Hands (morphing, extra fingers) | "anatomically correct hands, five natural fingers, no morphing" |
+| Paper / books / pages | "real paper with natural flexibility, pages bend softly, not stiff cardboard" |
+| Eyes (misaligned, duplicated) | "two natural eyes in correct position, anatomically accurate gaze" |
+| Small props with complex form | "realistic [object], natural construction, consistent shape throughout" |
+| Text / signage / writing | "avoid text and readable writing, abstract marks only" (Seedance can't render text reliably) |
+| Mirrors / reflective surfaces | "correctly-oriented reflection matching the real scene" |
+| Water / fluid / rain | "physically realistic [water/rain] with gravity and proper motion" |
+
+**Detect**: prompt mentions risk elements (hands in close-up, paper objects,
+complex props) without matching inoculation phrase.
+
+**Fix template**: append inoculation line at end of shot description for
+relevant risk elements. Example for c03 folio:
+```
+...hands slowly open the cover of a realistic dark leather folio. Real paper
+pages inside turn naturally as the cover tips back. Anatomically correct
+hands with five natural fingers, no morphing. Folio is a natural leather
+object with soft binding, pages are thin and flexible like actual paper.
+```
+
+**Severity**: major (visible artifacts that immediately look AI-generated)
+
+---
+
+## Updated rule application order
+
+When running Phase 1 Pre-check, run in this order (earlier rules are critical
+pre-reqs; later are polish):
+
+1. R9 (fl2v two-humans) — fail-fast
+2. R10 (reference order) — fail-fast
+3. R11 (action completion) — **new, most critical narrative issue**
+4. R12 (prop persistence) — **new, most critical continuity issue**
+5. R1 (axis) — critical physical rule
+6. R3 (physical geometry) — critical
+7. R2 (cross-clip state handoff) — critical, requires full production context
+8. R13 (shot-type precision) — major
+9. R14 (physical-artifact inoculation) — major
+10. R4, R5, R6, R7, R8 — polish
+
+If any critical flagged → STOP. Show user the report, wait for approval.
+
+## R15. Chain vs Parallel — Visual Dependency Decision (CRITICAL)
+
+**Added after:** v2 30s and 45s boundary findings — Gemini flagged cross-clip state inconsistencies (Woman not seen completing exit, folio disappearing) that were caused by running all clips in parallel instead of chaining the ones with visual dependencies.
+
+**What**: Determine for each adjacent clip pair whether the **later clip has visual dependency on the earlier clip's generated output**. If yes, it must be serially chained (wait for N → extract-frame → use in N+1), not submitted in parallel.
+
+**Detection (per clip pair N → N+1)**:
+
+Evaluate these conditions:
+1. **Same shot size and angle?**(e.g. both are MS on the same subject from same direction)
+2. **Same scene continues?**(same location, same characters in same relative positions)
+3. **Prop state dependency?**(a character holds a prop at end of N and is supposed to still hold it at start of N+1)
+4. **Eye-line / character pose continuity?**(正反打 reverse shot requires same characters in relative positions)
+
+If ANY of above is true → **`transition_type: serial_chain_required`**. Flag.
+
+If all false (scene jump, angle big-jump, flashback, etc.) → `transition_type: parallel_ok`.
+
+**Fix template** (when flagged):
+
+Annotate the clip plan:
+```
+Clip N+1:
+  transition_from_prev: "continuous" | "reverse" | "prop_handoff" | "same_shot_type"
+  requires_tail_frame: true
+  workflow_note: "Must wait for Clip N to finish, then /extract-frame which=last, then add to reference_image_urls or set as first_frame_url."
+```
+
+Update the main skill's generation pipeline to:
+1. Group clips by parallel eligibility
+2. Submit parallel groups concurrently
+3. Wait for each serial-chain group: N → extract → N+1
+
+**Severity**: critical (causing ~30% of observed cross-clip bugs in dogfood — far more impactful than axis-break or pacing alone)
+
+---
+
+## Future rules (to add as new bugs surface)
+
+- R16: Lighting direction consistency across shots
+- R17: Sound / dialogue reference sanity
+- R18: Genre-tone consistency
+- R19: Dynamic range / contrast warnings
+
+## Rule library evolution log
+
+| Version | Rules | Added based on |
+|---|---|---|
+| v1 | R1-R10 | 《末班车》v1 (10×5s) observed bugs + general AI video theory |
+| v2 | R11-R14 added | 《末班车》v2 (4×15s) Gemini audit findings |
+| **v3** | **R15 added** | **User insight: parallel submission vs visual-dependency chaining. Validates via《末班车》v2's 30s/45s boundary bugs being caused by parallel-only generation** |

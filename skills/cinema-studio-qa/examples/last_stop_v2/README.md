@@ -79,3 +79,37 @@ production that the user had already flagged 3 bugs in.
 4. **Rate limiting**: parallel Gemini calls failed once (shared tmpfile race
    condition in my first script version; fixed). Tools now use `$$` pid in
    tmp filenames and sequential calls are reliable.
+
+---
+
+## Regression test: v3 (auto-fix applied)
+
+After the first audit identified 3 critical + 1 major bug, we used the
+auto-fix-patterns.md recipes to rewrite prompts for all 4 clips (applying
+R11 action completion, R12 prop persistence, R13 shot-type precision,
+R14 physical-artifact inoculation). Re-generated all 4 in parallel
+(same as v2 approach — did NOT apply R15 chain-where-needed).
+
+**Result** (audit_full_v3.json):
+
+- **Critical bugs: 3 → 0** ✅ (doors-close / handoff-failed / drone-missing all fixed)
+- **Major bugs: 2 → 3** — new class emerged: **cross-clip prop drift**
+  (folio → book → brown bag across clip boundaries; Detective's face
+  changes between clips)
+- **Minor bugs: 1 → 2**
+- Overall: needs_rework (but clearly improved in severity)
+
+**What this validates:**
+1. **R11-R14 rules work** — all v2 critical bugs gone in v3
+2. **R15 (chain vs parallel) is essential** — v3's new major bugs are
+   ALL cross-clip drift issues that would be prevented by tail-frame
+   chaining between c01→c02→c03→c04. The parallel approach saves
+   wall-clock time but pays in prop / character identity drift.
+
+**Implication for production pipeline:**
+The main skill should detect visual-dependency chains (per R15 detection
+logic) and serialize those clips' generation, reserving parallelism for
+truly independent clips (scene jumps, large angle changes).
+
+A future v4 with proper chaining remains as the next dogfood step to
+confirm R15 closes the remaining major bugs.

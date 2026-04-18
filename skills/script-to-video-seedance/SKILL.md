@@ -470,13 +470,42 @@ body: {
 > fl2v 首尾帧只在少数特定场景用。连贯性做"切镜头切景别"实现,**不是**
 > 用 fl2v 一镜到底插值出来的。
 
-> **⚡ 并发铁律 — Seedance 几乎所有 clip 都可以并行提交:**
+> **⚡ 并发 vs 串行 — 哪些 clip 能并发,哪些必须尾帧提链**
 >
-> 因为 Seedance 默认用"切镜头切景别"做连贯(不是尾帧提链),**每个 clip 独立 ref2v**,互相不依赖。所以 10 个 clip 的片子一次性发 10 个 `POST /generate-video`,让后端并发跑,**wall-clock 从 30 分钟降到 3-5 分钟**。
+> 判断标准:后一 clip 是否**视觉依赖前 clip 的输出**?
 >
-> 唯一例外:如果某几个 clip 是**真·continuous 动作续接**,后面的要用前面 clip 的 extract-frame 当首帧 — 这种才要串行。正常叙事片极少需要。
+> | 过渡类型 | 景别变化 | 依赖前 clip 视觉 | 是否并行 |
+> |---|---|---|---|
+> | scene_jump(换地点) | 大 | 否 | ✅ 并行 |
+> | angle_change(大跳景别,WS↔CU) | 大 | 否 | ✅ 并行 |
+> | continuous(同场景动作续接) | 小 / 同 | 是 | ❌ **必须提链** |
+> | 正反打对白 | 中 | 是(两人相对位置) | ⚠️ 一般要提链 |
+> | prop-state handoff(上 clip 给物体,下 clip 角色持物) | — | **是**(物体位置姿态依赖生成帧) | ❌ **必须提链** |
+> | 同景别连续戏(都 MS 或都 CU) | 无 | 是(整体构图) | ❌ **必须提链** |
 >
-> **操作:** Phase 2 资产 + 合规库全部完成后,把所有 clip 的 prompt 准备好,一次循环发出去 → 背景轮询所有 `generation_id` → 全部 done 后整片收工。
+> **链式提帧流程**(必须串行的 clip):
+> ```
+> 前 clip 生成完 → POST /generations/{id}/extract-frame {"which":"last"}
+>               → 尾帧 URL 先进合规库(/api/compliance/check-by-url)
+>               → 作为下一 clip 的 `first_frame_url`
+>               → (可选) 作为 reference_image_urls 追加一张
+> ```
+>
+> **判断法则**:
+> - **景别不变** + **角色相对位置不变** → 几乎一定要链
+> - **物体状态依赖**(Clip N 的最后一帧里有 prop,下一 clip 仍要有)→ 一定要链
+> - **跨场景 / 跨时空 / 大景别变化** → 可以并行
+>
+> **操作建议**:
+> 1. Phase 1 分镜时就标注每个 clip 的 `transition_from_prev`:`scene_jump` / `angle_change` / `continuous` / `reverse` / `prop_handoff`
+> 2. 并行提交 `scene_jump` + `angle_change` 类 clip
+> 3. `continuous` / `reverse` / `prop_handoff` 类**串行**,等前序完成 → extract-frame → 合规库 → 发下一 clip
+>
+> **反面教材**:《末班车》v2 我把所有 4 个 clip 并行提交,结果 Gemini audit 抓到:
+> - 30s 过渡:Woman 没完整走完就切了(依赖 v2_c02 尾帧)
+> - 45s 过渡:文件夹"瞬间消失"(依赖 v2_c03 尾帧里 Julian 手持的文件夹)
+>
+> 这两个跨 clip 断裂,**本来用尾帧提链可以完全避免**。
 
 ### ref2v 是主路径(精品剧 90%+ 镜头走这条)
 
@@ -702,6 +731,47 @@ Seedance 跨 shot / 跨 clip 会"重掷骰子"选角色朝向,导致观众感觉
 - "maintain 180° axis throughout"
 
 没写 = Seedance 每 shot 自主重排画面朝向 = 断轴。
+
+### 跨镜动作连续性(Match on Action)— 解决"手打开了文件,切完手就没了"
+
+AI 视频 **最严重的出戏问题之一**:Shot A 手打开文件夹,Shot B 新角度的
+文件夹飘在空中或桌上**没手撑着**。状态(文件夹开着)失去了原因(手在开)。
+观众直觉到"不合理"。
+
+**本质**:物体状态 = 原因 + 结果。状态持续依赖的原因,切镜后必须继续给出。
+
+#### Seedance 2.0 的 Latent Memory(利好)
+
+Seedance 2.0 **单次 `/generate-video` 调用的内部多 shot** 有
+"Latent Memory Thread" — 会记住前一 shot 的物体位置和角色动作,保证跨内部
+shot 的物体永续性(论文里的例子:"Shot A 举杯 → Shot B 杯仍在同一手同一
+高度")。**但 memory 只在一次生成内部有效,跨 generate-video 调用就断**。
+
+**实战结论**:物体状态依赖强的切镜(开文件夹、举杯、拔剑、点烟)**尽量
+打包到同一个 clip 的内部多 shot**,不要拆成两个 clip,这样 Seedance 的
+latent memory 能救场。
+
+#### 写 prompt 时的四条铁律
+
+| 场景 | ❌ 错误写法 | ✅ 正确写法 |
+|---|---|---|
+| 手打开文件夹 | Shot A "hands open folio" → Shot B "overhead view of open folio on the bench" | Shot A "hands open folio" → Shot B "closer angle on the open folio **still held in both hands**, edge of fingers visible in frame" |
+| 举杯 | Shot A "he raises glass" → Shot B "close-up on the wine" | Shot A "he raises glass" → Shot B "macro on the wine, **his fingertips visible at bottom edge of frame** holding the stem" |
+| 拔剑 | Shot A "she draws sword" → Shot B "low angle on the raised sword" | Shot A "she draws sword" → Shot B "low angle on the sword, **her forearm and hand visible at top of frame** gripping hilt" |
+| 看文件 | Shot A "he opens folder, reads" → Shot B "insert on one page, nothing else" | Shot A "he opens folder, reads" → Shot B "insert on the page, **his shadow falls across it**, his breathing audible" |
+
+**四条铁律整理:**
+
+1. **切到特写/插入镜时,让因果物体的一部分(手边 / 肩边 / 影子 / 呼吸声
+   环境提示)留在帧内或音轨里** — 不要完全切空,状态就悬了
+2. **Match on action — 在动作进行到一半时切**,而不是完成后。观众眼睛
+   在追动作,自动忽略剪辑的瞬间。写法:"As his fingers open the cover, cut
+   to..."(在过程中),不是 "He has opened the cover. Cut to..."
+3. **高依赖状态切镜打包进单 clip 内部多 shot**,用 Seedance 的 latent
+   memory 保护。不要拆两个 generate-video 调用
+4. **或者让状态自解释**(无需原因的状态):文件夹放**桌上**翻开、杯放
+   **桌上**、剑**插在地上** — 物体脱离手之后仍然合理,就可以自由切角度
+   不用每帧留手
 
 ### 跨 clip 角色一致性(Seedance 的核心能力)
 
