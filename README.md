@@ -9,7 +9,7 @@ Claude Code skills for automating video production via the [Wemio Cinema Studio]
 | Skill | Best for |
 |-------|----------|
 | **[script-to-video-kling](skills/script-to-video-kling/SKILL.md)** | Dialogue-heavy drama, multi-episode narrative, cross-clip character consistency, precise parametric camera control, 720p/1080p finals. Uses Kling v3 / v3-omni multi-shot + element registration. |
-| *script-to-video-seedance* (coming soon) | Action / MV / realistic motion & physics, multimodal references (ref video + ref audio), native Chinese prompts. Uses Seedance 2.0 + `@图片N` positional references. |
+| **[script-to-video-seedance](skills/script-to-video-seedance/SKILL.md)** | Action / MV / realistic motion & physics, multimodal references (≤9 images + ≤3 videos + ≤3 audio), phoneme-level lip-sync, native Chinese prompts. Uses Seedance 2.0 Fast + `@图片N` positional references. Default 480p for cost. |
 
 **One production = one model.** Don't mix Kling and Seedance within a single show — color grading, motion style, and face drift differ enough that switching mid-project shows. Pick the skill that matches your project's dominant scene type.
 

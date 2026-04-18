@@ -7,7 +7,7 @@
 | 技能 | 适用场景 |
 |------|---------|
 | **[script-to-video-kling](skills/script-to-video-kling/SKILL.md)** | 对白戏、长剧集、跨集角色一致、精确运镜参数控制、720p / 1080p 正片出片。用 Kling v3 / v3-omni 的 multi-shot + element 注册体系。 |
-| *script-to-video-seedance*(待开发) | 动作片、MV、真实运动与物理、多模态参考(参考视频 + 参考音频)、中文原生 prompt。用 Seedance 2.0 + `@图片N` 位置引用。 |
+| **[script-to-video-seedance](skills/script-to-video-seedance/SKILL.md)** | 动作片、MV、真实运动与物理、多模态参考(≤9 张图 + ≤3 视频 + ≤3 音频)、音素级 lip-sync、中文原生 prompt。用 Seedance 2.0 Fast + `@图片N` 位置引用。默认 480p 省成本。 |
 
 **一部剧一个模型。** 不要在一部片子里混用 Kling 和 Seedance — 色调、运动风格、面部 drift 在两家之间差异明显,中途切换会露馅。按剧本的主导场景类型选对应 skill。
 
