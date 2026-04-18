@@ -6,9 +6,12 @@ Claude Code skills for automating video production via the [Wemio Cinema Studio]
 
 ## Available Skills
 
-| Skill | Description |
-|-------|-------------|
-| [script-to-video](skills/script-to-video/SKILL.md) | Automated screenplay-to-video production pipeline. Parses scripts into characters, locations, and scenes. Generates reference sheets, first frames, and multi-shot video clips with cinematic direction. |
+| Skill | Best for |
+|-------|----------|
+| **[script-to-video-kling](skills/script-to-video-kling/SKILL.md)** | Dialogue-heavy drama, multi-episode narrative, cross-clip character consistency, precise parametric camera control, 720p/1080p finals. Uses Kling v3 / v3-omni multi-shot + element registration. |
+| *script-to-video-seedance* (coming soon) | Action / MV / realistic motion & physics, multimodal references (ref video + ref audio), native Chinese prompts. Uses Seedance 2.0 + `@图片N` positional references. |
+
+**One production = one model.** Don't mix Kling and Seedance within a single show — color grading, motion style, and face drift differ enough that switching mid-project shows. Pick the skill that matches your project's dominant scene type.
 
 ## Quick Start
 
@@ -19,14 +22,14 @@ Copy the skill folder into your project's `.claude/skills/` directory:
 ```bash
 # From your project root
 mkdir -p .claude/skills
-cp -r skills/script-to-video .claude/skills/
+cp -r skills/script-to-video-kling .claude/skills/
 ```
 
 Or clone this repo and symlink:
 
 ```bash
 git clone https://github.com/DaoAI-Robotics-Inc/wemio_cinema_studio_skills.git
-ln -s "$(pwd)/wemio_cinema_studio_skills/skills/script-to-video" .claude/skills/script-to-video
+ln -s "$(pwd)/wemio_cinema_studio_skills/skills/script-to-video-kling" .claude/skills/script-to-video-kling
 ```
 
 ### 2. Get your API Key
@@ -54,13 +57,13 @@ JWT tokens expire every 24 hours. API keys are recommended for automation.
 In Claude Code, invoke the skill with your script:
 
 ```
-/script-to-video path/to/screenplay.txt
+/script-to-video-kling path/to/screenplay.txt
 ```
 
 Or paste the script directly:
 
 ```
-/script-to-video
+/script-to-video-kling
 
 INT. COFFEE SHOP - MORNING
 
@@ -68,13 +71,14 @@ A young woman sits alone at a corner table, staring at a glowing mark on her pal
 ```
 
 Claude will:
-1. Ask for your environment (prod/local) and API key
-2. Analyze the script as a film director
-3. Present a shot-by-shot production plan for your approval
-4. Generate character reference sheets and location establishing shots
+1. Ask for environment (prod/local), API key, and film format (aspect ratio, resolution, tier)
+2. Analyze the script as a film director and propose a shot-by-shot plan
+3. Generate character reference sheets and location establishing shots
+4. **Register each as a Kling element** (two-step: create + register + poll, with `needs_review` handling)
 5. Generate first frames with cinematic composition
 6. Produce multi-shot video clips with Kling 3.0
-7. Output a complete manifest with all assets
+7. Chain continuous clips via tail-frame extraction
+8. Output a complete manifest with all assets
 
 ## API Authentication
 
@@ -88,8 +92,6 @@ curl -H "Authorization: Bearer pk_your_api_key_here" \
 Both API keys (`pk_*`) and JWT tokens are supported. API keys are recommended for automation — they don't expire and don't require browser access.
 
 ### Managing API Keys via API
-
-You can also manage keys programmatically:
 
 ```bash
 # Create a key (authenticate with JWT or existing API key)
@@ -110,37 +112,49 @@ curl -X DELETE https://app.wemio.com/api/api-keys/<key_id> \
 
 ## API Endpoints Reference
 
+All paths prefixed with `/api/cinema-studio/`.
+
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/cinema-studio/projects` | POST | Create a new project |
-| `/api/cinema-studio/projects` | GET | List all projects |
-| `/api/cinema-studio/generate-character` | POST | Generate character reference sheet (3-view) |
-| `/api/cinema-studio/generate-location` | POST | Generate location establishing shot |
-| `/api/cinema-studio/generate-scene` | POST | Generate scene image / first frame |
-| `/api/cinema-studio/generate-video` | POST | Generate video (single-shot or multi-shot) |
-| `/api/cinema-studio/elements` | POST | Register generation as reusable Kling element |
-| `/api/cinema-studio/elements` | GET | List saved elements |
-| `/api/cinema-studio/generations/{id}/status` | GET | Poll generation status |
-| `/api/cinema-studio/upload` | POST | Upload reference image |
+| `/projects` | POST / GET | Create / list projects |
+| `/projects/{id}/generations` | GET | List all generations in a project (includes `credit_cost`) |
+| `/generations/{id}/status` | GET | **Primary status polling endpoint** (`/tasks/{task_id}` is legacy, `task_id` is usually null) |
+| `/generations/{id}` | PATCH / DELETE | Update (liked, element_name) / delete |
+| `/generate-character` | POST | Generate character reference sheet (3-view) |
+| `/generate-location` | POST | Generate location establishing shot |
+| `/generate-scene` | POST | Generate scene image / first frame |
+| `/generate-video` | POST | Generate video (single-shot or multi-shot) |
+| `/generations/{id}/extract-frame` | POST | Extract first or last frame of a video (replaces local ffmpeg) |
+| `/crop-ultrawide` | POST | Crop 16:9 → 21:9 |
+| `/upload` | POST | Upload reference image/video/audio |
+| `/elements` | POST / GET | Create element from a generation (does **not** trigger registration) / list |
+| `/elements/upload` | POST | Create element from user-uploaded 1-4 images |
+| `/elements/{id}/register/kling` | POST | **Explicitly trigger** Kling registration (background task) |
+| `/elements/{id}/register/kling/confirm` | POST | Submit user-approved frontal/back/face_detail panels (called when status goes to `needs_review`) |
+| `/elements/{id}/register/seedance` | POST | Explicitly trigger Seedance (Ark) compliance registration |
 
 ## Production Pipeline Overview
 
 ```
-Script → Phase 1: Director's Analysis (characters, locations, shot list)
-       → Phase 2: Asset Generation (character sheets, location refs, elements)
-       → Phase 3: First Frames (cinematic composition for each clip)
-       → Phase 4: Video Generation (Kling 3.0 multi-shot with consistency)
+Script → Phase 0: Setup (auth, project, film format)
+       → Phase 1: Director's Analysis (characters, locations, clip breakdown)
+       → Phase 2: Asset Generation + two-step Kling element registration
+       → Phase 3: First Frames (cinematic composition per clip)
+       → Phase 4: Video Generation (Kling 3.0 multi-shot, tail-frame chaining)
        → Phase 5: Summary & Manifest
 ```
 
 Key technical details:
-- **Character consistency**: Kling element system locks character appearance across clips
-- **Scene continuity**: Tail-frame chaining between consecutive clips
-- **Multi-shot**: 2-4 shots per clip, up to 15 seconds, automatic intra-clip consistency
-- **Prompt strategy**: Effects first, then action/emotion. Camera/style handled by API parameters, not prompt text.
-- **Three-round LLM review**: Generate → self-audit → correct for 9.5+ accuracy
+- **Two-step element registration**: `POST /elements` creates the element but does NOT register — you must explicitly call `POST /elements/{id}/register/kling`. May return `needs_review`; submit the three split panels to `…/confirm` to finalize.
+- **Character consistency**: Kling element system locks character appearance across clips via `cast_element_ids`.
+- **Cast token syntax**: `@素材N` positional (matches Phoenix UI cast chips) or `@ElementName` by-name — both rewritten to `<<<element_N>>>` server-side.
+- **Scene continuity**: Tail-frame chaining via the official `POST /generations/{id}/extract-frame` endpoint. No local ffmpeg needed.
+- **Multi-shot**: up to 6 shots, total ≤15s, each shot 2-15s integer seconds, each shot prompt ≤500 chars (Kling silently truncates beyond). Sound is forced ON in multi-shot mode.
+- **Pricing (per second, 2026-04)**: Kling 720p (standard) 30 credits/s with sound; 1080p (pro) 41 credits/s with sound. `sound_rate` is total, not additive.
+- **Namespaced error codes**: `kling.invalid_resolution`, `kling.element_not_found`, `kling.content_policy`, etc. — localized remediation lives in the skill's Error Handling table.
+- **Known limitation**: `aspect_ratio: 9:16` and other non-16:9 ratios currently produce less cinematic output because the backend prompt builder hardcodes 16:9 cinematography language. Work around by generating at 16:9 and cropping.
 
-See the [full skill documentation](skills/script-to-video/SKILL.md) for detailed API contracts, prompt formulas, and director's checklists.
+See the [full skill documentation](skills/script-to-video-kling/SKILL.md) for Pydantic schemas, prompt formulas, director's checklists, and curl examples.
 
 ## License
 
