@@ -1,0 +1,49 @@
+{
+  "production_id": "last_stop_v2",
+  "overall_duration_sec": 60,
+  "overall_assessment": "needs_rework",
+  "clip_issues": [
+    {
+      "clip": 3,
+      "time_range": "30-45s",
+      "category": "action_missing",
+      "severity": "major",
+      "description": "The prompt specifies the train pulling away with red tail lights receding. While some blurry red lights are visible in the background of a close-up, the clear action of the train departing the platform is not depicted.",
+      "fix": "Re-prompt Clip 3 to include a wider shot showing the train actually pulling away on the left while the detective opens the folio on the right."
+    },
+    {
+      "clip": 4,
+      "time_range": "45-60s",
+      "category": "prop_missing",
+      "severity": "critical",
+      "description": "The detective is no longer holding the folio. His hands are empty and hanging by his sides, contradicting the prompt and breaking continuity with the previous clip.",
+      "fix": "Re-prompt Clip 4 ensuring the 'holding folio' condition is strictly enforced in the image generation."
+    }
+  ],
+  "transition_issues": [
+    {
+      "boundary": "30s",
+      "category": "scene_element_disappears",
+      "description": "The woman is mid-stride walking back to the train at the end of Clip 2. At the start of Clip 3, the framing changes to a medium shot of the detective, and the woman/train context is abruptly lost without a clear exit.",
+      "severity": "minor",
+      "fix_suggestion": "Use the last frame of Clip 2 as an image prompt for the start of Clip 3 to maintain spatial awareness and show the woman completing her exit before cutting to the close-up."
+    },
+    {
+      "boundary": "45s",
+      "category": "state_inconsistency",
+      "description": "The folio completely disappears from the detective's hands between the end of Clip 3 (where he was just reading it) and the start of Clip 4.",
+      "severity": "critical",
+      "fix_suggestion": "Extract a frame from Clip 3 where he is holding the folio and use it as a structural reference (ControlNet/Image-to-Video) for the start of Clip 4 to ensure the prop remains in his hands."
+    }
+  ],
+  "cross_film_consistency": {
+    "character_appearance_stable": true,
+    "axis_maintained_across_all_clips": true,
+    "lighting_mood_consistent": true,
+    "notes": "The 180-degree rule is perfectly maintained (Train Left, Detective Right), and the overall dark, misty atmosphere is consistent throughout. However, the critical disappearance of the central prop (the folio) in the final clip severely breaks narrative continuity."
+  },
+  "_usage": {
+    "total_tokens": 8913,
+    "est_cost_usd": 0.0460
+  }
+}

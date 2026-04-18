@@ -1,0 +1,9 @@
+Production: 60-second short film "The Last Stop" (末班车) — a 4-clip concatenated video.
+
+Structure:
+- Clip 1 (0-15s): Empty subway platform 2am. Detective (40s, trench coat) waits on RIGHT third, checks wristwatch, a train arrives from LEFT on rails beyond platform edge, doors hiss open on LEFT.
+- Clip 2 (15-30s): Woman (30s, black bob, leather folio) steps off train (LEFT), walks LEFT-to-RIGHT across platform, hands folio to Detective, he accepts with both hands, she turns and walks back LEFT to train.
+- Clip 3 (30-45s): Detective (RIGHT) opens the folio (macro insert on hands), eyes dilate, micro-expressions on his face; train visible on LEFT pulling away with red tail lights receding.
+- Clip 4 (45-60s): Detective alone RIGHT, holding folio; camera pulls up-and-back drone-style; empty platform revealed; mist rolling in.
+
+180-degree axis: Train ALWAYS on LEFT, Detective ALWAYS on RIGHT, throughout all 4 clips.

@@ -1,0 +1,33 @@
+{
+  "clip_id": "v2_c03",
+  "duration_sec": 15,
+  "issues": [
+    {
+      "category": "pacing_directing",
+      "time_range": "0-7s",
+      "description": "Shot 1 is a medium shot of the detective instead of the requested macro insert of his hands opening the folio.",
+      "severity": "major",
+      "fix_suggestion": "Explicitly prompt for 'Extreme close-up macro shot of hands only, opening a leather folio' to force the correct framing."
+    },
+    {
+      "category": "physical_geometry",
+      "time_range": "0-7s",
+      "description": "The leather folio morphs unnaturally as it opens, turning into a thick block of stiff pages that resemble a screen or solid object. The hands also exhibit AI morphing artifacts.",
+      "severity": "critical",
+      "fix_suggestion": "Add negative prompts for 'morphing, unnatural objects, stiff pages' and emphasize 'realistic leather folio, natural paper pages turning'."
+    },
+    {
+      "category": "action_completion",
+      "time_range": "10-15s",
+      "description": "The requested high-frequency micro-tremor in the eyelid and jaw muscle flinch are barely noticeable or absent in the final close-up.",
+      "severity": "minor",
+      "fix_suggestion": "Enhance the prompt with 'exaggerated jaw muscle clench, visible eyelid twitch' to ensure the AI generates the specific facial micro-expressions."
+    }
+  ],
+  "overall_assessment": "needs_rework",
+  "positive_notes": "Spatial axis is perfectly maintained with the detective on the right and the train on the left. The eye macro shot is effective, and the receding train with red tail lights in the final shot matches the director's vision well.",
+  "_usage": {
+    "total": 3496,
+    "est_cost_usd": 0.0246
+  }
+}

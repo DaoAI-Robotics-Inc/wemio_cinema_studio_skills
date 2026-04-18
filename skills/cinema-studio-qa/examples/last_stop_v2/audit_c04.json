@@ -1,0 +1,22 @@
+{
+  "clip_id": "v2_c04",
+  "duration_sec": 15,
+  "issues": [
+    {
+      "category": "pacing_directing",
+      "time_range": "0-15s",
+      "description": "The intended drone-style camera pull-back (Shot 2) is completely missing. The video remains a single static shot for the entire 15 seconds, resulting in excessive dead time and failing to visually emphasize the character's isolation through camera movement.",
+      "severity": "critical",
+      "fix_suggestion": "Split the prompt to explicitly force a camera movement in the second half, e.g., 'Camera slowly pulls up and backwards, widening the shot to reveal the vast empty platform'."
+    },
+    {
+      "category": "character_consistency",
+      "time_range": "0-15s",
+      "description": "The detective is not holding the intended 'folio dropped loose in one hand'. His hands appear empty.",
+      "severity": "minor",
+      "fix_suggestion": "Explicitly mention 'detective holding a file folder loosely in his right hand' in the prompt."
+    }
+  ],
+  "overall_assessment": "needs_rework",
+  "positive_notes": "The lighting, mist effects rolling in from the left, and the detective's completely motionless pose effectively establish a moody, isolated atmosphere. The train is correctly absent."
+}

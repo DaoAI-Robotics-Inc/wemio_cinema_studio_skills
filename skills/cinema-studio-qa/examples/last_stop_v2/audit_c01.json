@@ -1,0 +1,19 @@
+{
+  "clip_id": "v2_c01",
+  "duration_sec": 15,
+  "issues": [
+    {
+      "category": "object_state_continuity",
+      "time_range": "11-15s",
+      "description": "The train doors close and the train departs the station before anyone exits, violating the requirement that the doors must stay open at the end of the clip for a handoff.",
+      "severity": "critical",
+      "fix_suggestion": "Explicitly state in the prompt: 'Train doors open and remain open until the end of the video. The train does NOT depart.'"
+    }
+  ],
+  "overall_assessment": "needs_rework",
+  "positive_notes": "The spatial axis is maintained perfectly (detective on right, train on left), the lighting and atmosphere are excellent, and the initial actions (checking watch, train arriving with steam) are well executed.",
+  "_usage": {
+    "total": 3007,
+    "est_cost_usd": 0.0179
+  }
+}

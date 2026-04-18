@@ -1,0 +1,15 @@
+{
+  "clip_id": "v2_c02",
+  "duration_sec": 15,
+  "issues": [
+    {
+      "category": "object_state_continuity",
+      "time_range": "06-10s",
+      "description": "The folio transfer fails. The woman extends the folio, but the detective does not take it. She retains the folio and carries it back to the train.",
+      "severity": "critical",
+      "fix_suggestion": "Explicitly prompt 'detective successfully takes the folio, woman's hands are empty as she turns away'. Use negative prompts like 'woman keeping object, failed handoff'."
+    }
+  ],
+  "overall_assessment": "needs_rework",
+  "positive_notes": "Spatial axis is perfectly maintained (train left, detective right). Lighting, atmosphere, and character appearances are consistent and fit the intended mood."
+}

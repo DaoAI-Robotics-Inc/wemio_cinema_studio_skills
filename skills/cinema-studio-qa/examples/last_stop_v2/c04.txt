@@ -1,0 +1,6 @@
+Clip 4 (15s). Ending / isolation.
+- Shot 1 (7s): Detective stands completely still on RIGHT third, folio dropped loose in one hand, absolutely motionless
+- Shot 2 (8s): Camera pulls up and back drone-style, revealing the full empty platform, detective shrinking to a small figure at lower right, mist and flickering lights dominating
+- The train should NOT appear in this clip (it already left in Clip 3)
+- But IF the transition is abrupt (train visible at start of this clip but suddenly gone), that's a state-continuity break
+- Watch for dead time: is 15s of near-static composition engaging, or does it feel padded?
