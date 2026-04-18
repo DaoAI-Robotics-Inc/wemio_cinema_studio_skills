@@ -170,27 +170,55 @@ When running Phase 1 Pre-check:
 
 If any critical flagged → STOP. Show user the report, wait for approval / fix before generating.
 
-## R11. Action Completion Must Be Explicit (CRITICAL)
+## R11. Action Completion Must Be Explicit (CRITICAL) — 字面主义规则
 
-**Added after:** v2 c02 Gemini finding — "The folio transfer fails. Woman extends folio but detective does not take it. She retains the folio and carries it back."
+**Added after:** v2 c02 Gemini finding (handoff failed). **Extended in v3**
+(Woman "walks back toward train" → she just stood there). Seedance is
+literal — it renders what you describe, no common-sense inference.
 
-**What**: When a prompt describes an exchange / handoff / grab / release action,
-the prompt must explicitly describe **both sides of the action completing**,
-otherwise Seedance/Kling can render the attempt without the completion.
+**Principle**: Every action verb in a prompt must be followed through to its
+**completion state** + **terminal state**, not just the initiation.
 
-**Detect**: prompt contains exchange verbs without completion language:
-- Exchange verbs: `hands over`, `gives`, `passes`, `throws`, `catches`, `takes`,
-  `accepts`, `releases`, `grabs`, `delivers`, `递`, `交给`, `扔给`, `抓`, `接`,
-  `拿`, `给`
-- Missing completion indicators: `fully`, `completely`, `successfully`,
-  `empty hands after`, `now holds`, `finishes the exchange`, `完成交接`, `彻底`,
-  `最终`
+**Formula**:`Action = setup + process + completion + terminal state`. Write all four.
 
-**Fix template**:
+**Detect**: prompt contains action verbs without completion + terminal language.
+
+### Exchange / transaction verbs
+- Detect: `hands over`, `gives`, `passes`, `throws`, `catches`, `takes`,
+  `accepts`, `releases`, `grabs`, `delivers`, `递`, `交给`, `扔给`, `抓`, `接`, `拿`, `给`
+- Completion missing indicators needed: `fully`, `successfully`, `empty hands after`, `now holds`, `finishes`, `完成`
+
+### Movement verbs (NEW extension v3)
+- Detect: `walks`, `runs`, `approaches`, `turns`, `leaves`, `exits`, `enters`,
+  `boards`, `heads back`, `moves toward`, `走`, `跑`, `转身`, `离开`, `进入`, `上车`, `下车`
+- Completion missing indicators needed: `disappears through`, `fully boards`,
+  `reaches and enters`, `steps into`, `walks out of frame`, `消失在`, `彻底进入`, `走出画面`
+
+### Motion / transport verbs (NEW)
+- Detect: `train pulls away`, `car drives off`, `ship sails`, `plane takes off`,
+  `列车驶离`, `车开走`
+- Completion missing indicators needed: `fully exits frame`, `tail lights vanish`,
+  `disappears into the tunnel/distance`, `完全离开画面`, `消失在远方`
+
+### Physical action verbs (NEW)
+- Detect: `sits`, `stands`, `lights`, `opens`, `closes`, `drops`, `raises`,
+  `坐下`, `站起`, `点燃`, `打开`, `关上`, `放下`, `举起`
+- Completion missing indicators needed: specific end-state language
+  (`settles into the chair`, `flame touches tip which glows red`, `door closes with click`, etc.)
+
+**Fix template (v3)**:
 - Before: `"She hands him the folio"`
 - After: `"She extends the folio with both hands. He reaches forward, firmly grasps it with both hands. She releases her grip, her hands go empty and drop to her sides. He now holds the folio at chest level. The handoff fully completes."`
 
-**Severity**: critical(would produce broken narrative, 50%+ failure rate observed)
+- Before: `"She walks back toward the train"`
+- After: `"She walks back to the train, steps up into the carriage, disappears through the open doors, and the doors hiss closed behind her."`
+
+- Before: `"The train pulls away"`
+- After: `"The train pulls away to the LEFT, fully exits the frame, tail lights vanish into the dark tunnel."`
+
+**Severity**: critical (the #1 root cause of observed AI video bugs in
+Seedance — action describes begin-state, AI doesn't infer end-state, result
+looks broken)
 
 ---
 

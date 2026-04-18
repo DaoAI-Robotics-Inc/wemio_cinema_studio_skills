@@ -677,6 +677,27 @@ POST /generate-video
 **写每个 shot 的 prompt 时:先从 `camera-vocabulary.md` 挑一个对应的
 运镜术语**,再组装其他信息。80 个精选术语按情绪/动作/特效分类。
 
+### ⚠️ Seedance 字面主义(Literalism)— 写 prompt 最重要的一条
+
+**Seedance 2.0 只渲染你明确写出来的东西,不做常识推理。** 写动作必须
+描述完整状态链,否则只出现动作的开头。
+
+**公式:动作 = 起势 + 过程 + 完成态 + 终结状态**
+
+| 动作类型 | ❌ 只写一半(AI 只演起势) | ✅ 写完整(AI 演全过程) |
+|---|---|---|
+| 走向某处 | `walks back toward the train` | `walks back to the train, **steps up into the carriage, disappears through the doors, which hiss closed behind her**` |
+| 上交物体 | `she hands him the folio` | `she extends folio, **he grasps it firmly with both hands, she releases, her hands drop empty to her sides, he now holds it at chest**` |
+| 火车驶离 | `train pulls away LEFT` | `train pulls away, **fully exits the frame to the LEFT, tail lights vanish into the tunnel**` |
+| 坐下 | `he sits down` | `he sits down **into the chair, settles back, hands on armrests**` |
+| 离开 | `she turns and leaves` | `she turns, **walks out of frame right, footsteps recede into silence**` |
+| 点燃 | `he lights a cigarette` | `he lights a cigarette, **flame touches tobacco, tip glows red, first smoke curls upward**` |
+
+**实战教训**(《末班车》v3 bug 全部来自没写完整状态链):
+- Woman "walks back toward the train" → 她站那儿不动了(没写进车消失)
+- Train "pulling away" → 火车没真正离场(没写完全出 frame)
+- Folio → book → bag(每 clip 没复述"same leather folio from previous scene")
+
 ### 基础 prompt 结构(精确运镜 + 四层信息)
 
 一条 shot prompt 里组装 5 块信息,**运镜术语必须具体命名**:
