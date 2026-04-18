@@ -28,13 +28,17 @@ import argparse
 import json
 
 PRICING = {
-    ("seedance-2.0", "480p"): {"silent": 21, "sound": 30},
-    ("seedance-2.0", "720p"): {"silent": 27, "sound": 41},
+    # Seedance 2.0 standard — user-confirmed 2026-04-18: 17 credits/s @ 480p
+    # (sound has no surcharge on Seedance — it's joint audio+video gen)
+    ("seedance-2.0", "480p"): {"silent": 17, "sound": 17},
+    ("seedance-2.0", "720p"): {"silent": 27, "sound": 27},
     ("seedance-2.0", "1080p"): {"silent": 91, "sound": 91},
-    ("seedance-2.0-fast", "480p"): {"silent": 17, "sound": 17},
-    ("seedance-2.0-fast", "720p"): {"silent": 22, "sound": 22},
-    ("kling-v3", "720p"): {"silent": 30, "sound": 30},
-    ("kling-v3", "1080p"): {"silent": 41, "sound": 41},
+    # Seedance 2.0 Fast (cheaper tier)
+    ("seedance-2.0-fast", "480p"): {"silent": 12, "sound": 12},
+    ("seedance-2.0-fast", "720p"): {"silent": 17, "sound": 17},
+    # Kling (different pricing model — sound is a surcharge)
+    ("kling-v3", "720p"): {"silent": 21, "sound": 30},
+    ("kling-v3", "1080p"): {"silent": 27, "sound": 41},
 }
 
 GEMINI_PRICES = {
@@ -57,7 +61,7 @@ AUTO_FIX_RETRY_MULTIPLIER = {
     "default": 1.4,
 }
 
-CREDIT_TO_USD = 0.0125  # rough; user's actual rate may vary
+CREDIT_TO_USD = 0.005  # user-confirmed 2026-04-18: 17 credits/s @ $0.085/s
 
 
 def estimate(num_clips, duration_per_clip_s, model, resolution, with_sound,
