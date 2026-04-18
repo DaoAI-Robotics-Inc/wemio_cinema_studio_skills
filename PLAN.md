@@ -277,16 +277,32 @@ than my guessing.
 - [x] Phase 2 Gemini audit (audit_clip, audit_full)
 - [x] R15 reframe-chained
 - [x] R17 prop-exchange double-state-update
-- [x] `examples-drama.md` (one genre done)
-- [ ] Phase 1 — bucket corpus → 8 genre examples
-- [ ] Phase 1 — genre router
-- [ ] Phase 1 — validation run (drama + anime)
-- [ ] Phase 2 — script parser
-- [ ] Phase 2 — shot decomposer
-- [ ] Phase 2 — continuity state machine
-- [ ] Phase 2 — 3-genre validation
-- [ ] Phase 3 — `/cinema-studio-produce` slash command
-- [ ] Phase 3 — budget gates + error recovery
-- [ ] Phase 3 — 2-min fresh-script end-to-end test
+- [x] R18 physical destruction dedicated shot
+- [x] R19 anime style override via refs
+- [x] R20 iconic archetype filter avoidance
+- [x] **Phase 1 — bucket corpus → 9 genre examples** (tools/bucket_corpus.py, emit_examples.py, extract_style_profiles.py)
+- [x] **Phase 1 — genre router** (table in SKILL.md)
+- [x] **Phase 1 — validation run** (drama / anime text-only tests exposed format+R1 limits; findings codified as skill updates)
+- [x] **Phase 2 — script parser** (tools/parse_script.md)
+- [x] **Phase 2 — shot decomposer** (tools/decompose_scene.md with R1 hardened rules)
+- [x] **Phase 2 — continuity state machine** (tools/continuity_state.md)
+- [x] **Phase 3 — budget estimator** (tools/budget_estimator.py)
+- [x] **Phase 3 — orchestrator playbook** (tools/produce_pipeline.md, 10 phases A-J)
+- [x] **Phase 3 — integration test "The Drop"** — 30s 2-scene drama. Validated:
+  - Pipeline A-J runs end-to-end
+  - R1 hardened rule: s2 achieved 3 real cuts with independent primary subjects
+  - R17 exchange: Gemini confirmed "no phantom briefcases"
+  - R20 archetype filter: generic buyer rewrite passed Ark filter
+  - Dual-judgment policy: Claude+Gemini reconciled successfully (neither alone was accurate — Claude over-counted cuts on s1, Gemini under-counted; middle ground found by extracting more frames)
+  - Result: 30s final.mp4 delivered at /tmp/the_drop/the_drop_final.mp4
+  - Cost: 1155 credits (~$14.44) + $0.06 Gemini = ~$14.50 for 30s short
+- [ ] Phase 3 — `/cinema-studio-produce` slash command (playbook written, not yet wired as a slash command)
+- [ ] Phase 3 — 2-min fresh-script end-to-end test (next regression test)
+- [ ] Regression test framework (`/tests/productions/`)
+
+**Next logical step:** wire the playbook into an actual slash command so
+users can invoke `/cinema-studio-produce script.txt` and have the skill
+orchestrate all 10 phases. Or: do a 2-min 8-clip production to stress-test
+the pipeline at full scale.
 
 Update this section as each item closes.
