@@ -552,12 +552,69 @@ is reference-image + cut-to-different-subject.**
 
 ---
 
+## R16. Cross-Shot Action Continuity — Absolute Position + Explicit Negation (MAJOR)
+
+**Added after:**《末班车》v5 c02 v2 dogfood — observed that when clip's Shot 2
+opens with Woman at train door (contradicting Shot 1 where she was already
+walking on platform), Seedance had literally interpreted "Woman 从 RIGHT
+走入画面" as "walks in from RIGHT direction(= train side)= just exited
+train". Also the ref_image_urls[last] showing Woman near train doors was
+tug each shot back to that position.
+
+### What
+
+Every internal shot within a multi-shot clip must describe the character's
+**starting position absolutely**, not as a relative direction, AND if the
+character has an alternate plausible starting state (e.g. "just exited
+train"), **explicitly negate** it.
+
+### Detection checklist
+
+For each shot N ≥ 2 in the prompt, check:
+
+1. **Is starting position absolute?** "X 已站在 Y 前 1 米处" ✓ vs "X 从
+   RIGHT 走入画面" ✗
+2. **Does any relative direction reference a location where the character
+   could plausibly originate?** If "RIGHT" = tracks / train doors / entry
+   point, then "X 从 RIGHT 走入" will be read as "X 刚从那边出来".
+3. **Does ref_image_urls contain a state the prompt does NOT want reused?**
+   If ref shows Woman at train door but shot 2 wants her on platform mid-walk,
+   the ref will tug toward "at door" state → needs explicit negation.
+4. **Has the prompt explicitly negated alternate start states?** "她不从车里
+   出来 / She is not exiting the train" ✓ if ambiguous.
+
+### Fix template
+
+For each shot N ≥ 2:
+```
+shot_N:
+  position_anchor: "X 已在 [绝对坐标 / 相对 Y 的具体距离] 处 [停 / 站 / 坐]"
+  negation_if_needed: "X 不 [在 A 状态], 不 [在 B 位置]"
+  action: "X [当前动作], continuing from the established position"
+```
+
+### Severity
+
+Major. Without this rule, cross-shot temporal order can break (e.g., Shot 1
+character walking → Shot 2 character emerging from origin = time loop).
+Very noticeable; Gemini may not always flag it because internal shot
+composition reads coherent frame-by-frame.
+
+### Bonus: ref_image_urls tug strength
+
+Seedance 2.0 uses ref_image_urls for character appearance AND tends to pull
+each internal shot's subject placement toward the ref image's implied state.
+**If you use a ref image showing X in position P**, every shot's X tends
+toward P unless prompt explicitly says otherwise.
+
+---
+
 ## Future rules (to add as new bugs surface)
 
-- R16: Lighting direction consistency across shots
-- R17: Sound / dialogue reference sanity
-- R18: Genre-tone consistency
-- R19: Dynamic range / contrast warnings
+- R17: Lighting direction consistency across shots
+- R18: Sound / dialogue reference sanity
+- R19: Genre-tone consistency
+- R20: Dynamic range / contrast warnings
 
 ## Rule library evolution log
 
@@ -565,4 +622,5 @@ is reference-image + cut-to-different-subject.**
 |---|---|---|
 | v1 | R1-R10 | 《末班车》v1 (10×5s) observed bugs + general AI video theory |
 | v2 | R11-R14 added | 《末班车》v2 (4×15s) Gemini audit findings |
-| **v3** | **R15 added** | **User insight: parallel submission vs visual-dependency chaining. Validates via《末班车》v2's 30s/45s boundary bugs being caused by parallel-only generation** |
+| v3 | R15 added | User insight: parallel submission vs visual-dependency chaining. Validates via《末班车》v2's 30s/45s boundary bugs being caused by parallel-only generation |
+| **v4** | **R16 added** | **《末班车》v5 c02 v2 dogfood: cross-shot temporal break due to relative direction + ref_image tug. Needed explicit absolute positioning + negation rule.** |
