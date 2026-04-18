@@ -38,13 +38,21 @@ Automated quality assurance for Wemio AI video output.  Plugs in after either
 `script-to-video-kling` or `script-to-video-seedance` produces N clip URLs.
 
 ```
-Main skill generates N prompts
+Phase 0 — Scene blueprint (Gemini 3.1 Pro, ~$0.005/scene)
+  • For every unique scene reference image in the production, call
+    tools/scene_blueprint.sh to extract structured spatial facts:
+    left/right passability, light direction, entry/exits, usable paths,
+    blocked paths, props present, physical rules.
+  • Cache per scene_id in manifest; reuse across all clips in that scene.
+  • Blueprint becomes a HARD constraint input to prompt writing.
+    ↓
+Main skill generates N prompts  (now consuming the blueprint)
     ↓
 Phase 1 — Pre-check (Claude, free, seconds)
   • Scans prompts against rule library (pre-check-rules.md)
   • Flags: missing axis lock, state-dependency chains broken across clips,
     excessive dead time, missing vocabulary terms, missing 2-3 shot structure,
-    fl2v-with-humans-both-ends, etc.
+    fl2v-with-humans-both-ends, prompt contradicts scene blueprint, etc.
   • If flags → stop, show diff, ask user approval
     ↓
 Main skill generates N video clips
@@ -82,11 +90,102 @@ Phase 3 — Auto-fix loop (Claude, up to 3 iterations)
   Each issue category → concrete edit recipe.
 - `tools/upload_video.sh` — Bash helper: uploads local mp4 or URL to Gemini
   Files API, waits for ACTIVE, prints file_uri.
+- `tools/scene_blueprint.sh` — **Phase 0**. Given a scene reference image
+  (URL or local path), returns structured JSON spatial blueprint. ~$0.005/scene.
 - `tools/audit_full.sh` — **RECOMMENDED**. Full-production audit: given the
   concatenated mp4's file_uri + intended description, returns JSON with
   both per-clip issues AND cross-clip transition issues. One call, ~$0.045/60s.
 - `tools/audit_clip.sh` — Per-clip audit: drill-down helper when full-audit
   flags a specific clip but you need more detail. Use sparingly.
+
+## Phase 0 — Scene blueprint (Gemini vision, pre-prompt)
+
+### Why this phase exists
+
+Prompt writing without scene ref = Claude making up where walls, exits, lights
+are. This caused observed bugs like characters "exiting" through a wall or
+a train arriving on the wrong side of a platform. Gemini 3.1 Pro reads the
+scene reference image once and produces a structured blueprint that every
+clip prompt in that scene MUST honor.
+
+### When to run
+
+- **Always** when main skill has at least one `scene_reference_url` /
+  `location_reference_url` / any composed scene image going into ref2v
+- **Skip** for pure text-to-video with no visual reference (rare in Cinema
+  Studio; most productions generate a location/scene image first)
+
+### Flow
+
+```bash
+# For each unique scene in the production (reuse blueprint for clips in same scene):
+./tools/scene_blueprint.sh \
+  https://assets.cdn.wemio.com/scene/<scene_id>.png \
+  "subway platform, 00:15 last train, noir mood" \
+  > /tmp/<prod>/scene_<scene_id>.blueprint.json
+```
+
+Then consume blueprint fields when writing R11 environment descriptions:
+- `spatial.left_of_frame` → prompt must not claim an exit on left if blueprint
+  says "brick wall, non-passable"
+- `light.primary_direction` → every shot in this scene lit from that direction
+- `blocked_paths` → prompt cannot describe actions that cross them
+- `entry_exits` → character entrances/exits must use these exact paths
+- `physical_rules` → verbatim insert into the R11 environment block
+
+### Output schema
+
+```json
+{
+  "scene_id": "subway_platform_night",
+  "camera_framing": "wide, slightly low-angle, facing east",
+  "spatial": {
+    "left_of_frame": "brick pillar and tile wall, non-passable",
+    "right_of_frame": "platform edge + train track beyond",
+    "foreground": "wet platform tile, reflective",
+    "background": "dark tunnel mouth with warning stripes",
+    "above": "fluorescent strip lights",
+    "below": "wet tile with visible reflections"
+  },
+  "light": {
+    "primary_direction": "overhead cool fluorescent, slight right-bias",
+    "quality": "hard",
+    "mood_color": "teal-green with amber signal accents"
+  },
+  "entry_exits": [
+    "stairs at back-left leading up to street",
+    "train doors at right (only when train present)"
+  ],
+  "usable_paths": [
+    "along platform edge, left-to-right or right-to-left",
+    "from back-left stairs toward front-right platform edge"
+  ],
+  "blocked_paths": [
+    "cannot walk through left wall",
+    "cannot cross tracks"
+  ],
+  "props_present": [
+    "bench mid-right",
+    "trash can back-right",
+    "safety-line yellow strip at platform edge"
+  ],
+  "physical_rules": [
+    "train arrives/departs from right only (track is on right)",
+    "wet tile reflects — any feet in frame cast visible reflection",
+    "light source is overhead, so shadows fall downward/outward, not lateral"
+  ],
+  "notes": "Signage in Mandarin visible but small; not readable at 480p.",
+  "_usage": { "total": 1542, "image_tokens": 516, "est_cost_usd": 0.005 }
+}
+```
+
+### How Phase 1 uses it
+
+In `pre-check-rules.md` R11.2 (environment), the check is now:
+
+> Does the prompt's environment description CONTRADICT the scene blueprint?
+> e.g. prompt says "character exits to left" but blueprint lists left as
+> `blocked_paths`. Flag as `critical`.
 
 ## Phase 1 — Pre-check (Claude, free)
 
