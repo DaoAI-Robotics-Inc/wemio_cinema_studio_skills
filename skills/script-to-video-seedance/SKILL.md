@@ -721,9 +721,20 @@ POST /generate-video
 
 #### Prompt 字数的现实
 
-第三方 2.0 guide 常说"60-100 词 sweet spot" — **那是给 generic 短 prompt 的**,
-不适合精品剧。**完整描述的 prompt 通常 400-600 词/shot**,这是正常量,别
-因为怕长而删减状态描述。Seedance 能吃 2500 字,用好它。
+Phoenix Cinema Studio API 对 prompt 有 **2500 字符硬上限**(Pydantic
+`max_length=2500` 在 `CinemaGenerateVideoRequest.prompt`)。超了 422。
+
+实战字数规划(每 15s clip):
+- **目标:2200-2450 字符**(英文约 350-400 词,中文约 700-800 字)
+- 第三方 2.0 guide 的"60-100 词"是 generic 短 prompt 的经验,**完全不适合
+  精品剧**,太短会让 Seedance 自由发挥
+- 精品剧完整描述需要 R11 四维度全覆盖,**用字精炼但不删状态**
+
+**写长了超 2500 怎么办**:
+1. 优先保留:角色动作的完成链 + prop 状态 + 终态
+2. 可压缩:重复的场景氛围描述、冗长的形容词堆
+3. 不能删:LEFT/RIGHT 轴、运镜名词、物理几何、prop 材质
+4. 中文比英文密度高,同样信息中文字符数约英文的 1/3 到 1/2
 
 #### Pre-check 的四个"问自己":
 

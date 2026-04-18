@@ -215,6 +215,24 @@ Count action verbs per character — if <2, likely under-specified.
 **R11.2 check**: scan for environment nouns(train/door/light/rain/fog/steam/etc).
 For each: does the prompt describe its state through the clip(not just at start)?
 
+**R11.2b Scene-blueprint cross-check** (when a Phase 0 blueprint exists for
+the scene, i.e. `scene_<id>.blueprint.json`): parse the prompt's spatial /
+motion claims and verify against the blueprint:
+  - Any character exit/entry must match a `entry_exits` entry — if prompt
+    says "exits to screen-left" but blueprint left_of_frame is
+    `blocked_paths: cannot walk through left wall`, flag **critical**.
+  - Any vehicle / transport motion must obey `physical_rules`(e.g. train
+    arriving from direction that contradicts track position).
+  - Lighting direction in the prompt must match `light.primary_direction`
+    across all clips in the same scene — contradicting shots cause
+    continuity breakage.
+  - Props that appear in prompt but are not in `props_present` are fine
+    (character can bring props in); but props claimed to stay in scene
+    between clips must be in `props_present`.
+
+This check is the main reason Phase 0 exists — without the blueprint, Claude
+writes prompts in a spatial vacuum and the generator fills in arbitrarily.
+
 **R11.3 check**: scan for prop nouns(folio/glass/weapon/letter/phone/key/etc).
 For each: does the prompt describe who holds it / where it sits at start AND end?
 
@@ -445,38 +463,92 @@ If any critical flagged → STOP. Show user the report, wait for approval.
 
 ## R15. Chain vs Parallel — Visual Dependency Decision (CRITICAL)
 
-**Added after:** v2 30s and 45s boundary findings — Gemini flagged cross-clip state inconsistencies (Woman not seen completing exit, folio disappearing) that were caused by running all clips in parallel instead of chaining the ones with visual dependencies.
+**Added after v2 boundary bugs. REFINED v4 after user production insight:**
+> "全能参考一般会从上一段抽帧,但不一定都是尾帧。一般为了两段能接得上,下一段首帧会直接切上一段尾帧出现的人物以外的人物。正常短剧抽帧挺多的,一般用来交代人物姿势或者人物站位。"
 
-**What**: Determine for each adjacent clip pair whether the **later clip has visual dependency on the earlier clip's generated output**. If yes, it must be serially chained (wait for N → extract-frame → use in N+1), not submitted in parallel.
+**What**: When Clip N+1 has visual dependency on Clip N's output state, extract
+a frame from N (not necessarily the tail) and **use as a scene-state reference
+in N+1**, NOT as a mechanical first-frame chain. Critically: N+1's opening
+shot should **cut to a different subject** than the reference frame's
+subject — this is how editing actually works in real drama.
 
-**Detection (per clip pair N → N+1)**:
+### Detection (per clip pair N → N+1)
 
 Evaluate these conditions:
-1. **Same shot size and angle?**(e.g. both are MS on the same subject from same direction)
-2. **Same scene continues?**(same location, same characters in same relative positions)
-3. **Prop state dependency?**(a character holds a prop at end of N and is supposed to still hold it at start of N+1)
-4. **Eye-line / character pose continuity?**(正反打 reverse shot requires same characters in relative positions)
+1. Same shot size and angle across cut?
+2. Same scene continues?
+3. Prop state dependency?
+4. Eye-line / character pose continuity?
 
-If ANY of above is true → **`transition_type: serial_chain_required`**. Flag.
+If ANY true → **`transition_type: chained_with_reframe`** (not just "chained").
 
-If all false (scene jump, angle big-jump, flashback, etc.) → `transition_type: parallel_ok`.
+### Correct workflow (pro-grade, per user insight)
 
-**Fix template** (when flagged):
-
-Annotate the clip plan:
 ```
+Clip N 生成完
+  ↓
+/extract-frame(which=last 或中间 frame — 选最能表达"场景状态"的那帧)
+  ↓
+提交合规库 → 等 compliant
+  ↓
+2 种用法(优先 a):
+
+(a) 放 reference_image_urls[-1] — 作场景状态 ref,推荐默认
+(b) 放 first_frame_url — literal 起始帧,**仅在要求画面直接从那帧动起来时用**
+
+  ↓
+Clip N+1 prompt 里显式标注:
+  "Reference image N is the tail state of the previous scene. Scene
+  continues from this state. Clip OPENS by cutting to [different
+  character / closer framing / new angle] than the reference's
+  primary subject."
+  ↓
+Clip N+1 的第一个内部 shot 必须是不同主体 / 不同景别 / 不同 POV
+```
+
+### 为什么不是机械 first_frame_url 链接
+
+电影剪辑法则:**同景别同人物连切 = jump cut(跳切,烂剪辑)**。切到不同主体 / 景别 / POV = 合理剪辑。
+
+用尾帧直接作 `first_frame_url` 的问题:
+- Seedance 会在头 1-2 秒"保留上段结尾的主体"(因为 first frame 强制它从那开始)
+- 等于让观众多看一遍已经看过的内容,浪费时长
+- 视觉体验像"逐帧续播"而非"shot 切换"
+
+用尾帧作 `reference_image_urls`(状态 ref)的好处:
+- Seedance 理解"场景状态是这样的",但**不强制起始画面**
+- 新 clip 可以直接开场切到另一人物 / 另一角度
+- 视觉体验是"cinematic cut",match on action
+
+### 抽帧的主要用途(实战)
+
+- **交代人物站位**:上一段结束时 Julian 站右,Woman 下车后走右;新 clip 起步就知道位置
+- **传递 prop 状态**:Julian 手里同一个 leather folio 要跨 clip 保持
+- **锁环境**:wet tile, mist, 列车位置,不因新生成而漂移
+
+### Fix template (when flagged)
+
+Annotate clip plan:
+```yaml
 Clip N+1:
-  transition_from_prev: "continuous" | "reverse" | "prop_handoff" | "same_shot_type"
-  requires_tail_frame: true
-  workflow_note: "Must wait for Clip N to finish, then /extract-frame which=last, then add to reference_image_urls or set as first_frame_url."
+  transition_from_prev: "reframe_chained"
+  tail_reference_from: Clip N (extract-frame which=last or best-state-frame)
+  tail_reference_usage: reference_image_urls  # default, unless first_frame justified
+  opening_cut: "cut to [different subject from reference]"
 ```
 
-Update the main skill's generation pipeline to:
-1. Group clips by parallel eligibility
-2. Submit parallel groups concurrently
-3. Wait for each serial-chain group: N → extract → N+1
+Update main skill's generation pipeline:
+1. Identify chained-with-reframe pairs
+2. Wait for Clip N → extract-frame → compliance-check-by-url
+3. Add to Clip N+1's reference_image_urls (not first_frame_url by default)
+4. Clip N+1 prompt explicitly states "reference N is tail of previous scene, continue state but cut to different subject"
+5. Submit Clip N+1
 
-**Severity**: critical (causing ~30% of observed cross-clip bugs in dogfood — far more impactful than axis-break or pacing alone)
+### Severity
+
+Critical. **V4 dogfood c01→c02 used first_frame_url mechanically; observe if
+opening is awkward. v3 all-parallel caused prop drift. Correct middle way
+is reference-image + cut-to-different-subject.**
 
 ---
 
