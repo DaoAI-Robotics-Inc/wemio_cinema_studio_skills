@@ -38,15 +38,20 @@ Automated quality assurance for Wemio AI video output.  Plugs in after either
 `script-to-video-kling` or `script-to-video-seedance` produces N clip URLs.
 
 ```
-Phase 0 — Scene blueprint (Gemini 3.1 Pro, ~$0.005/scene)
-  • For every unique scene reference image in the production, call
-    tools/scene_blueprint.sh to extract structured spatial facts:
-    left/right passability, light direction, entry/exits, usable paths,
-    blocked paths, props present, physical rules.
-  • Cache per scene_id in manifest; reuse across all clips in that scene.
-  • Blueprint becomes a HARD constraint input to prompt writing.
+Phase 0a — Claude reads ALL reference images (free, ~1 min)
+  • Download every character/scene/prop ref, Read with vision, extract
+    concrete facts (age, hair, outfit colors, passability, prop material,
+    etc.) into ref_facts.md.
+  • Anti-drift: prompts must not contradict ref_facts.md.
     ↓
-Main skill generates N prompts  (now consuming the blueprint)
+Phase 0b — Scene blueprint via Gemini (~$0.005/scene)
+  • For every unique scene reference, tools/scene_blueprint.sh extracts
+    structured JSON: left/right passability, light direction, entry/exits,
+    usable/blocked paths, physical_rules.
+  • Cache per scene_id in manifest; reuse across clips in same scene.
+  • Blueprint fields feed R11.2b pre-check.
+    ↓
+Main skill generates N prompts  (consuming BOTH ref_facts + blueprint)
     ↓
 Phase 1 — Pre-check (Claude, free, seconds)
   • Scans prompts against rule library (pre-check-rules.md)
@@ -98,15 +103,53 @@ Phase 3 — Auto-fix loop (Claude, up to 3 iterations)
 - `tools/audit_clip.sh` — Per-clip audit: drill-down helper when full-audit
   flags a specific clip but you need more detail. Use sparingly.
 
-## Phase 0 — Scene blueprint (Gemini vision, pre-prompt)
+## Phase 0 — Read references, then scene blueprint (pre-prompt)
 
 ### Why this phase exists
 
-Prompt writing without scene ref = Claude making up where walls, exits, lights
-are. This caused observed bugs like characters "exiting" through a wall or
-a train arriving on the wrong side of a platform. Gemini 3.1 Pro reads the
-scene reference image once and produces a structured blueprint that every
-clip prompt in that scene MUST honor.
+Prompt writing without reading the refs = Claude writing prompts in a visual
+vacuum that can silently contradict the actual ref images:
+- Character refs: "young guy in red hoodie" when the ref actually shows a
+  40-something in a charcoal trench coat → generator produces wrong character
+- Scene refs: "exits to screen-left" when the ref shows left wall as solid
+  tile → character walks through a wall, or generator hallucinates a left
+  exit that doesn't exist
+- Prop refs: "black leather folio" when the ref shows a brown one → prop
+  drifts mid-clip or flips on every shot
+
+Observed in《末班车》v2-v4: train axis was written LEFT across all prompts,
+but the scene reference image actually has tracks on the RIGHT. Four
+productions drifted because no one consulted the ref.
+
+Phase 0 has TWO sub-steps. Do both before writing ANY prompt.
+
+### Phase 0a — Claude reads all reference images (free, 1 min)
+
+**For every `reference_image_urls` entry in the production**(character refs,
+scene refs, prop refs, composed scene refs — all of them):
+
+1. Download the image locally: `curl -sL "$URL" -o /tmp/<prod>/refs/<name>.jpg`
+2. Read it with the `Read` tool so vision actually sees pixels
+3. Write a `ref_facts.md` that locks in ground truth:
+   - For each character: age, hair (length/color/style — specific), facial
+     hair, eyes, outfit (each piece + color), build, posture
+   - For each scene: left/right/fg/bg passability, props in frame, light
+     direction, axis implied by geometry (e.g. tracks on right → train from right)
+   - For each prop: material, color, size, shape
+4. Note any **prompt vocabulary to use**(copy from ref) and **DO NOT write**
+   terms (anti-drift guards)
+5. If two refs conflict (e.g. v2 prompt says train on LEFT but scene ref
+   shows tracks on RIGHT), **ref wins** — rewrite the prompt's axis.
+
+**Output**: `/tmp/<prod>/ref_facts.md`, consulted verbatim when writing
+prompts. The prompt for each clip must not contradict any fact in this file.
+
+### Phase 0b — Structured scene blueprint (Gemini 3.1 Pro, ~$0.005/scene)
+
+For the **scene/location refs only**(not character refs), run
+`tools/scene_blueprint.sh` to get a machine-readable JSON blueprint. This
+is consumed by Phase 1 R11.2b cross-check(and by the main skill's
+`/generate-video` call if it does prompt validation before submit).
 
 ### When to run
 

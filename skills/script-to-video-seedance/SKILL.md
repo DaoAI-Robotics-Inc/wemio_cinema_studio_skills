@@ -770,24 +770,71 @@ Phoenix Cinema Studio API 对 prompt 有 **2500 字符硬上限**(Pydantic
 5. **风格锁** — 句末挂全片 style lock(`"cinematic handheld realism, 35mm
    film grain, desaturated teal-amber grade"`)
 
-### 单 clip 内部多 shot 的组织方式
+### 单 clip 内部多 shot 的现实边界(诚实报告)
 
-Seedance 2.0 单次 `/generate-video`(≤15s)在模型内部会按 prompt 自主切
-2-3 个 shot。写法:**每个 shot 用一个具体运镜术语起头,动作过渡用自然时序
-连接**(`"then"` / `"as he turns"` / `"a beat later"` / `"紧接着"`)。
+**《末班车》v5 c01 三种格式实测,全部不触发内部切镜** — Seedance 2.0 在
+单次 `/generate-video` 里选一个主机位后压着不动,把所有"shot 标记"压成
+同一机位下的时间推进,即便 prompt 明确要求切镜:
+
+| # | 测试格式 | 结果 |
+|---|---|---|
+| v1 | `Shot 1 (0-5s, 稳定长镜头): ...` + 括号时间戳 | 单镜 |
+| v2 | `[0-5s] CUT TO 车辆跟随镜头 — ...` 时间戳起头 + CUT TO 段间硬切 | 单镜(Gemini 假阴性) |
+| v3 | 五字段硬跳:`景别/角度:特写/低角度;运动:略微下压;画面内容:...` | 单镜 |
+
+三种都失败后的假设:**prompt 格式可能不是第一变量,类型(genre)+ 叙事语法
+才是**。Seedance 训练集里:
+- **动作 / 动画 / MV** 天然就是多 cut 结构 → 模型在这些类型 signal 下会默认切镜
+- **noir / drama / 文艺** 训练集里以长镜头为主(5-15s 一镜) → 模型默认不切
+
+**未验证但看起来有潜力的格式**(anime / action 类用户实战 prompt 常见):
 
 ```
-<场景 + 光线 + style>. 缓慢推入镜头:@图片1 crouches on right side of frame,
-checking watch. Then 急停定格镜头 as he lowers his wrist —
-列车从 frame 左侧滑入,headlights sweeping across wet tiles, brakes hiss
-with steam. Doors hiss open on the left.
+Cut to ECU of the detective's eyes, pupils contracting as the headlight
+flares across his face. Cut to wide shot of the empty platform, train
+emerging from the tunnel right. Cut to OTS from Julian's left shoulder,
+watching the train doors hiss open. Cut to medium two-shot, Julian LEFT
+looking right, Woman RIGHT stepping onto platform with brown folio clutched
+in both hands at waist.
 ```
 
-**`[0s-Xs]` 时间戳 + `Cut to` 硬转场词是可选的**(有些第三方 2.0 guide 主张
-这套;但 Seedance 2.0 用户社区实战经验显示:精确运镜术语 + 自然时序连接
-已经够,时间戳反而偶尔让模型死板按秒剪)。有特别精细的节奏要求时再加。
+特点:narrative prose,标准影视英文词汇(ECU / medium shot / OTS / wide
+shot / establishing),`Cut to` 作桥接词,全片style signal 放第一句
+("anime fight choreography" / "MAPPA cinematic cut" 这种)。
 
-### 3-shot 稳妥公式
+### 真正想要可控多 shot 的推荐路径
+
+别赌 Seedance 内部切镜。**1 个 shot = 1 次 `/generate-video`** + ffmpeg
+concat(用 `cinema-studio-ops` skill):
+- ✅ **可控**:每个 shot 独立 prompt,景别 / 角度 / 长度各管各
+- ✅ **跨 shot 连贯靠抽帧 + `reference_image_urls`**(R15 reframe-chained,
+  见 `cinema-studio-qa/pre-check-rules.md`)
+- ❌ **代价**:每 shot 都要付 credits(即便只要 3-5s 也按 min billing 扣);
+  同样 15s 内容拆 3 shot 比合 1 clip 贵约 30-60%
+- ❌ **失 latent memory**:一次 generate-video 内部 shot 之间 Seedance 有
+  跨 shot latent memory(prop 位置、角色姿态延续),拆开后靠抽帧+ref ,
+  接得住但更脆弱
+
+**如果非要压到单 clip 多 shot**,用 **Kling 的 `multi_shots` API 字段**
+(见 `script-to-video-kling` skill)— 那是**原生多 shot**,不是靠 prompt
+提示。
+
+### Seedance 内部多 shot 能做 什么
+
+不是完全没用,只是有明确边界。能做:
+- 同一主体 / 同一场景下的**轻微**机位位移(平移 / 推拉 / 跟随)
+- 时间推进中的**动作状态变化**(train approach → stop → doors open —— 这 Seedance 照做,只是相机不变)
+- 环境变化(light 变 / 雾起 / 雨大)
+
+做不好:
+- 景别硬切(wide ↔ ECU)
+- 角度硬切(俯视 ↔ 仰视)
+- 完全不同主体的跳切(Julian 脸 → Woman 脚)
+- 空间跳切(平台 → 列车内)
+
+所以现在 prompt 里只要写到"Shot 1 特写,Shot 2 中景"的结构,基本都**白搭**。
+
+### 3-shot 稳妥公式(使用 1-shot-per-call 路径时)
 
 遇到想不出具体运镜时的默认回路:
 **Wide establishing(后退揭示镜头)→ Medium action(推进亲密镜头)→
