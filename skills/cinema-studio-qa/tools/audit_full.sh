@@ -74,7 +74,18 @@ At each clip boundary:
 - Does the last frame of the earlier clip smoothly connect to the first frame of the next?
 - Any element visible at end of Clip N — still visible (or plausibly off-frame) at start of Clip N+1?
 - State of characters/props consistent across boundary?
-- Axis / orientation / lighting continuous?"""
+- Axis / orientation / lighting continuous?
+
+CRITICAL completeness check (per R11 Exhaustive Description):
+For each clip, carefully list:
+- MISSING: what the intended description explicitly specified but the video does NOT show
+- EXTRA: what the video shows that was NOT in the intended description
+- PARTIAL: actions that started but didn't complete (e.g. 'walks toward train' but didn't board)
+
+Every MISSING / PARTIAL item becomes an issue in the output. This is the
+highest-priority check — it catches under-specified prompts (Seedance
+filled in arbitrary defaults) and execution failures (Seedance ignored
+part of the prompt)."""
 
 payload = {"contents":[{"parts":[{"file_data":{"mime_type":"video/mp4","file_uri":file_uri}},{"text":prompt}]}],"generationConfig":{"temperature":0.1,"response_mime_type":"application/json"}}
 print(json.dumps(payload))

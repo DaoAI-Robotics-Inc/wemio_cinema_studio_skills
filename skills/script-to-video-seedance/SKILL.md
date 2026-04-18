@@ -677,10 +677,36 @@ POST /generate-video
 **写每个 shot 的 prompt 时:先从 `camera-vocabulary.md` 挑一个对应的
 运镜术语**,再组装其他信息。80 个精选术语按情绪/动作/特效分类。
 
-### ⚠️ Seedance 字面主义(Literalism)— 写 prompt 最重要的一条
+### ⚠️ Seedance 穷尽描述(Exhaustive Description)原则 — 写 prompt 第一铁律
 
-**Seedance 2.0 只渲染你明确写出来的东西,不做常识推理。** 写动作必须
-描述完整状态链,否则只出现动作的开头。
+**Seedance 2.0 对 prompt 指令遵守极好 — 问题永远是你写得不够完整,不是它不听话。**
+
+写 prompt 时,把整个场景当作一张"时空蓝图"来画,每个元素的每个瞬间
+都要在蓝图上。AI 不会脑补没画的地方,只渲染蓝图上有的。
+
+#### 必须写全的四个维度
+
+**(1) 每个出场角色** — 位置 + 起始状态 + 全程动作 + 结束状态
+- 不只主角:配角 / 背景人物也要
+- 每个动作都写**起势→过程→完成→终态**(4 段公式)
+
+**(2) 整个环境** — 场景元素的**全程状态**,特别是关键物件
+- 列车:门开着吗?关了?驶离了?
+- 灯光:闪烁?常亮?灭了?
+- 天气:雨下着?停了?变大?
+- 蒸汽 / 雾 / 烟:弥漫?消散?
+- 不写 = AI 自由发挥 = 每次不一样
+
+**(3) 所有 prop** — 从出现到离场完整轨迹
+- 谁拿着?放哪?传给谁?
+- 状态:关闭 / 打开 / 破损 / 完整
+- 颜色材质形状要精准(`dark black leather folio` 不是 `folio`)
+
+**(4) 时序** — 0 秒到最后一秒每个重大变化
+- 每个内部 shot 切换点的前后状态都要清晰
+- **clip 结束时画面应该是什么样**必须写明
+
+#### 动作 4 段公式(R11 字面主义)
 
 **公式:动作 = 起势 + 过程 + 完成态 + 终结状态**
 
@@ -693,10 +719,31 @@ POST /generate-video
 | 离开 | `she turns and leaves` | `she turns, **walks out of frame right, footsteps recede into silence**` |
 | 点燃 | `he lights a cigarette` | `he lights a cigarette, **flame touches tobacco, tip glows red, first smoke curls upward**` |
 
-**实战教训**(《末班车》v3 bug 全部来自没写完整状态链):
-- Woman "walks back toward the train" → 她站那儿不动了(没写进车消失)
-- Train "pulling away" → 火车没真正离场(没写完全出 frame)
-- Folio → book → bag(每 clip 没复述"same leather folio from previous scene")
+#### Prompt 字数的现实
+
+第三方 2.0 guide 常说"60-100 词 sweet spot" — **那是给 generic 短 prompt 的**,
+不适合精品剧。**完整描述的 prompt 通常 400-600 词/shot**,这是正常量,别
+因为怕长而删减状态描述。Seedance 能吃 2500 字,用好它。
+
+#### Pre-check 的四个"问自己":
+
+写完每个 clip prompt,过一遍:
+1. **每个被提到的角色**,我写了他整段戏的状态吗?还是只写了他第一秒?
+2. **场景里可见的不动元素**(列车/门/灯/天气),我写了它全程状态吗?
+3. **每个 prop**,我写清楚从头到尾它在哪、谁拿着、什么状态吗?
+4. **这个 clip 结束时的画面**是什么样?prompt 里有写明这个终态吗?
+
+任何一条答不上 → prompt 不完整 → Seedance 会在那个空白处"自由发挥"。
+
+#### 实战教训:《末班车》v3 所有 major bug 都是描述不完整
+
+| bug 表象 | 我漏写的 | 补全做法 |
+|---|---|---|
+| Woman 给完就站着不动 | 她进车 / 门关 / 车去哪 | 写全"她走到门 → 踏上车 → 消失在车内 → 门关上" |
+| 列车没真离站(几个红点) | 它到底走没走 / 出画面没 | 写全"列车完全驶出画面向左 / 尾灯消失于隧道黑暗中" |
+| Folio 变 book 变 bag | c03/c04 没说同一个 prop | 每 clip 都复述"the SAME dark leather folio from the previous scene" |
+
+**总结:AI 不猜。写多少就渲染多少。**
 
 ### 基础 prompt 结构(精确运镜 + 四层信息)
 

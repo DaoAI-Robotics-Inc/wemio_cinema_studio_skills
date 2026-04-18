@@ -170,7 +170,122 @@ When running Phase 1 Pre-check:
 
 If any critical flagged → STOP. Show user the report, wait for approval / fix before generating.
 
-## R11. Action Completion Must Be Explicit (CRITICAL) — 字面主义规则
+## R11. Exhaustive Description — 穷尽描述原则(CRITICAL,规则框架之核心)
+
+**Added v4 after user insight:**
+> "Seedance 对指令的遵守很好,应该是要把每个人物、整个场景以及完整的变化都加进去。包括最开始写 prompt 和最后检查的时候都要考虑到。"
+
+Root-cause reframing: Seedance doesn't fail by disobeying — it fails by
+rendering only what's explicitly written. The fix is writing **complete
+scene blueprints**, not more clever prompts.
+
+### R11 structure: 4 sub-checks
+
+**R11.1 Character completeness** — every character in frame has:
+  - position(LEFT/RIGHT, foreground/background, frame third)
+  - starting state(standing / walking / kneeling / gesturing)
+  - full action arc(4-stage: setup + process + completion + terminal)
+  - ending state(where they are + what they're doing at clip end)
+
+**R11.2 Environment completeness** — every visible scene element's full trajectory:
+  - Vehicles(train / car): position, motion state, departing/arriving/stationary
+  - Architecture(door / window): open/closed, state changes
+  - Lighting: flicker / steady / dimming
+  - Weather / atmosphere: rain, steam, mist, smoke — is it intensifying, fading, static?
+
+**R11.3 Prop persistence** — every prop tracked from entry to exit:
+  - Who holds it, where it sits, its material/color/size (specific not generic)
+  - State(closed/open, clean/broken, full/empty)
+  - Transfer chain if it moves between characters
+
+**R11.4 Terminal state** — clip ends with what image?
+  - Who's in frame and doing what?
+  - What's the scene's atmosphere at the last frame?
+  - Props where?
+  - This becomes the implicit handoff to the next clip
+
+### Detection checklist (Pre-check)
+
+For each clip prompt, apply all 4 sub-checks. Flag if any sub-check fails.
+
+**R11.1 check**: for each named character / @图片N referenced in the prompt,
+does the prompt describe their state at both start AND end of the clip?
+Count action verbs per character — if <2, likely under-specified.
+
+**R11.2 check**: scan for environment nouns(train/door/light/rain/fog/steam/etc).
+For each: does the prompt describe its state through the clip(not just at start)?
+
+**R11.3 check**: scan for prop nouns(folio/glass/weapon/letter/phone/key/etc).
+For each: does the prompt describe who holds it / where it sits at start AND end?
+
+**R11.4 check**: does the prompt have explicit ending-frame language?
+Keywords: `clip ends with`, `final frame shows`, `at the end`, `最终画面`, `clip 结束时`,
+or equivalent compositional description of the last moment.
+
+### Fix template
+
+Take any under-described scene and expand systematically:
+
+Before (under-specified):
+```
+She hands him the folio and walks back.
+```
+
+After (exhaustive):
+```
+[R11.1 她:] She extends the folio with both hands. He grasps it with
+both hands. She releases, her hands drop empty. She turns 180° on her
+heel, walks back LEFT to the train, steps into the carriage, disappears
+through the doorway.
+
+[R11.1 他:] He stays fixed on right third, firmly holding the folio at
+chest level, his eyes tracking her until she's gone, then looking down
+at the folio.
+
+[R11.2 列车/门:] Train remains at platform, doors hissed open at start,
+Woman passes through doorway, doors hiss closed behind her, train stays
+stationary, steam from brakes gradually thinning.
+
+[R11.3 folio:] Folio starts in Woman's both hands, passes to Detective's
+both hands, ends at Detective's chest level held in both hands.
+
+[R11.4 终态:] Final frame: Detective alone on right third holding folio,
+Woman gone, train doors closed, steam dispersed, platform silent.
+```
+
+The bracketed annotations are for Pre-check clarity — in the actual prompt,
+merge into prose.
+
+### Character / Environment / Prop action-verb vocabulary
+
+(inherited from old R11 — now categorized under R11.1 / R11.2 / R11.3)
+
+Exchange verbs (R11.1): `hands over, gives, passes, throws, catches, takes, accepts, releases, grabs, delivers`
+Movement verbs (R11.1): `walks, runs, approaches, turns, leaves, exits, enters, boards`
+Motion / transport (R11.2): `train pulls away, car drives off, ship sails, plane takes off`
+Physical action (R11.1): `sits, stands, lights, opens, closes, drops, raises, points`
+
+For all of these, completion + terminal state required per 4-stage formula.
+
+### Severity
+
+**Critical** — this is the root-cause rule for ~70% of observed Seedance bugs
+in《末班车》 dogfood. Under-specified scene blueprint is the single biggest
+quality lever.
+
+### Post-check uses R11 too
+
+Gemini audit prompt now includes:
+> "Does the video contain every element that the intended description specifies?
+> List anything in the intended description that's MISSING from the video, and
+> anything PRESENT in the video that wasn't described in the intended."
+
+This catches both directions: under-specified prompt that Seedance filled in
+arbitrarily, and explicit prompt that Seedance failed to render.
+
+---
+
+## R11-legacy. Original Action Completion rule (subsumed by R11 above)
 
 **Added after:** v2 c02 Gemini finding (handoff failed). **Extended in v3**
 (Woman "walks back toward train" → she just stood there). Seedance is
