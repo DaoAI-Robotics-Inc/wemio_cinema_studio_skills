@@ -441,6 +441,52 @@ body: {
 
 ## Phase 4 — Video Generation (Seedance Single-Shot)
 
+> **🎯 行业默认做法:市面精品剧绝大多数镜头都用 ref2v 全能参考出片,
+> fl2v 首尾帧只在少数特定场景用。连贯性做"切镜头切景别"实现,**不是**
+> 用 fl2v 一镜到底插值出来的。
+
+### ref2v 是主路径(精品剧 90%+ 镜头走这条)
+
+- 角色 + 场景的一切常规戏,都传 `reference_image_urls` 做全能参考
+- 需要锁开场画面时加 `first_frame_url`(注意:scene 级图要先 Asset
+  register + compliance,见 Phase 2 Step 7)
+- 不要执着于"把场景做成一镜到底" — 精品片都是剪辑出来的,不是生成出来的
+
+### fl2v 是辅助工具(少数场景专用)
+
+用 fl2v 的场景:
+- 角色入场 / 出场(空景 ↔ 有人,实测可过 — 两端不都是人就行)
+- 环境转场(白天→黑夜 / 雨→雪 / 空镜 1 → 空镜 2)
+- 物体动画(道具 / logo / 车辆移动)
+- **偶尔用于精确站位控制**:把角色 + 场景合成图(通过 scene edit 或手绘
+  草图)作为首尾帧,让 Seedance 按这两张"关键帧"插值,站位由图本身决定,
+  补充 prompt 描述动作
+
+**fl2v 站位控制的具体打法**(用户实战经验):
+1. 用 `generate-scene` + `is_edit: true` 生成"人物在场景里"的合成图(含
+   想要的站位)作为首帧 / 尾帧
+2. 或画个站位草图(棒人 / 剪影 + 场景)直接 `/upload` 后当 `last_frame_url`
+3. prompt 里描述动作过程 ("@图片1 walks from left to right, reaches the
+   corner")
+4. 两端都有清晰人物会触发 `real_person` — 这时拆成两段 clip 或换 ref2v
+5. 一端人物 + 一端空景(或草图)通常能过
+
+### 连贯性策略(和 Kling 一样):切镜头切景别
+
+**不要用 fl2v 硬做"一镜到底"** — 这不是影视行业的连贯性做法。精品剧
+的连贯 = 不同景别 / 角度的剪辑组接,每个 clip 是独立 ref2v 单镜头:
+
+| 叙事关系 | 做法 |
+|---|---|
+| 同场 continuous 动作 | Clip N+1 切景别(WS → MCU 或 MS → CU),每 clip 独立 ref2v,同一批 `reference_image_urls` |
+| 对白反打 | 正反肩 Clip 切换,每个独立 ref2v,场景 / 角色 ref 保持一致 |
+| 视觉冲击点(emphasis) | 插一个 ECU / Insert clip,独立 ref2v |
+| 场景切换 | 新 ref 图(换地点)进 `reference_image_urls`,独立 ref2v |
+
+**和 Kling 不同的是**:Kling 一个 clip 内部可以 multi-shot 切镜头;
+Seedance 不行,**每次切镜头 = 新 clip**(新的 generate-video 调用)。
+剪辑阶段把这些独立 clip 组接起来。
+
 ### 两种模式的选择
 
 Seedance 后端**根据传入字段自动选模式**:
@@ -451,6 +497,16 @@ Seedance 后端**根据传入字段自动选模式**:
 | 精确首尾插值 | `first_frame_url` + `last_frame_url`,**不传** ref_* 字段 | `fl2v` |
 | 带参考视频做 style transfer / motion 模仿(**成本高,默认不用**) | `ref_video_urls: [...]` | `ref2v` |
 | 带参考音频做 BGM / 对白节奏 | `ref_audio_urls: [...]` | `ref2v`(还需至少 1 张图或视频) |
+
+**全能参考(ref2v)允许的组合(实测 2026-04-18):**
+| 组合 | 结果 |
+|---|---|
+| 图片 only(最多测到 4 张合规图) | ✅ |
+| 图片 + 视频(`ref_video_urls`) | ✅ |
+| 图片 + 音频(`ref_audio_urls`) | ✅ |
+| **图片 + 视频 + 音频 三合一** | ❌ `service_error` — **后端不支持 3-way** |
+
+**实战结论**:全能参考本质是 **2-way 多模态**(图 + 视频,或图 + 音频),**不能三合一**。要音 + 视频同时影响生成,只能走两趟分别生成再后期剪。
 
 **⚠️ 互斥规则:**
 - `fl2v`(给了首+尾帧)模式下,**所有 ref_image_urls / ref_video_urls /

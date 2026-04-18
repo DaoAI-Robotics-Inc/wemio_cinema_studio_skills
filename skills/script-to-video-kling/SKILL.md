@@ -453,6 +453,21 @@ Kling 独有,不用白不用。常见:
 | flashback | 全新首帧 | 独立构图 |
 | reaction | 全新首帧 | 角色 element 图,180 度规则 |
 
+> **🎯 行业实战:精品连贯 = 切镜头切景别,不一定靠尾帧提链**
+>
+> Kling 的 multi-shot 能力让 clip 内部可以切镜头(WS → MCU → CU),这是
+> Seedance 没有的优势。**clip 之间的连贯首选做法是切景别 + 同角色
+> element 锁角色**,不是全片都用 `continuous` 尾帧提链。
+>
+> 例如对白场景:
+> - Clip 1 multi-shot: 两人 WS 建立 → MS 切入正面 → 正打 MCU
+> - Clip 2 multi-shot: 反打 MCU → 反打 CU
+> - 两个 clip 走 `angle_change`(不是 continuous),各自独立生成首帧,
+>   角色靠 `cast_element_ids` 跨 clip 锁定
+>
+> 尾帧提链适合**真正连续的物理动作**(一场追逐 / 一个镜头跟着角色走过走廊),
+> 日常戏不用到处提链。
+
 **并行策略**:`scene_jump` / `flashback` / `reaction` / `angle_change` 可并行;
 `continuous` 必须串行(依赖前序尾帧)。
 
