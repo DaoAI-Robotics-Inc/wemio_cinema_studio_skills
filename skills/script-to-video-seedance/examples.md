@@ -215,7 +215,27 @@ curl -s -X POST "${API}/api/compliance/check-by-url" \
   -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" \
   -d "{\"file_url\":\"${IMAGE_URL}\"}"
 # → {"asset_id":"...","status":"pending","ark_asset_id":null,"error":null,"checked_at":null}
+# → 如果 404 "Asset not found for URL",先建 Asset(Step 1b)
 ```
+
+### Step 1b(若 Step 1 返回 404):手动注册 Asset
+```bash
+# generate-scene 产出的首帧 URL / /upload 的图 URL 不自动建 Asset,要手动
+curl -s -X POST "${API}/api/assets/register-url" \
+  -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" \
+  -d "{\"file_url\":\"${IMAGE_URL}\",\"asset_type\":\"image\",\"source_type\":\"cinema_scene\"}"
+# → {"id":"...","file_url":"...","seedance_status":"unchecked",...}
+# 然后回到 Step 1 再 check-by-url
+```
+
+**不需要手动建 Asset 的 URL**(自动有 Asset 行):
+- `generate-character` 输出
+- `generate-location` 输出
+- `/extract-frame` 输出
+
+**需要手动建 Asset 的 URL**:
+- `generate-scene`(首帧)输出
+- `/upload` 上传的图
 
 ### Step 2:轮询到 compliant
 ```bash

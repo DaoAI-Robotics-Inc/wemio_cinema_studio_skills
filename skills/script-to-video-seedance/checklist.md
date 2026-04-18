@@ -22,7 +22,8 @@
 | 2.4 | 角色图是不是"太像真人"? | 风格化 / 明显 AI 感 | 真实人脸 → `ark.face_policy` 拒 |
 | 2.5 | 每个要用的参考图都注册了吗? | 每个 element 的 `seedance_registration_status == "done"` | 未注册的图会被降级成 plain URL 传 Ark,可能被拒 |
 | 2.6 | **每张图进合规库了吗?** | 所有将作 frame / ref 的 URL 都 `POST /api/compliance/check-by-url` 并轮询到 `compliant`(character / location / scene 首帧 / extract-frame 尾帧,全部) | 没进合规库 → 生成时 `real_person` 等拒 |
-| 2.7 | fl2v 帧图是不是无人景? | 纯环境 / 空镜 / 物体 | fl2v 帧图有写实人物就算合规过也会被拒(实测);角色转场改走 ref2v 或尾帧提链 |
+| 2.7 | fl2v 帧图两端不是都有人? | 允许:有人→无人 / 无人→有人 / 无人→无人 | fl2v 两端**都**有写实人物会拒 `real_person`(实测);一端有一端无可过 |
+| 2.8 | generate-scene 产出的首帧要进合规时先注册 Asset? | 404 `Asset not found` 时,先 `POST /api/assets/register-url` 再 `check-by-url` | Scene 产出 URL 不自动建 Asset;generate-character / extract-frame 自动建 |
 
 ## Phase 3 检查:首帧构图
 
