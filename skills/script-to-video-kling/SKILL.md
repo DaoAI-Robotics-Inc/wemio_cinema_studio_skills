@@ -369,6 +369,14 @@ clip 的 `first_frame_url`。**不需要 ffmpeg,不需要下载 mp4。**
 
 ## Phase 4 — Video Generation (Kling Multi-Shot)
 
+> **⚡ 并发铁律 — 非 continuous 的 clip 一次全发,别一个一个来:**
+>
+> Clip 间如果走"切景别切角度"(angle_change / scene_jump / reaction 等,靠 `cast_element_ids` 锁角色一致 — 这也是精品剧的默认做法),**每个 clip 互相不依赖**,一次性 10 个 `POST /generate-video` 并发提交,**wall-clock 从 30+ 分钟降到 3-5 分钟**。
+>
+> 只有**真·尾帧提链**(`continuous`,后面 clip 要用前面 clip 的 `/extract-frame` 输出当首帧)才必须串行。正常叙事片这类很少。
+>
+> **操作:** Phase 2 element 全部 registered 之后,把所有 clip 的 prompt + first_frame_url 准备好,一次循环发出去 → 背景轮询所有 `generation_id`。
+
 ### 请求模板
 ```json
 POST /generate-video
@@ -501,6 +509,12 @@ Kling 独有,不用白不用。常见:
 3. Locations: Name, image, element id, kling_registration_status
 4. Clips: First frame, video URL, shot breakdown, duration, credit_cost
 5. 保存 `manifest.json`(用于后续剪辑、延续拍摄、出片报告)
+
+### 成片拼接(post-production)
+
+本 skill 只负责生成 N 个独立 clip URL。**用户说"拼起来" / "做成一个片子"时,
+交给 `cinema-studio-ops` skill 处理**(本地 ffmpeg concat,产物默认保存本地
+`/tmp/...`,不自动上传 S3)。参考:`skills/cinema-studio-ops/SKILL.md`。
 
 ---
 
