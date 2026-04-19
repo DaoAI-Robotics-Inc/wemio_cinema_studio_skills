@@ -850,12 +850,78 @@ to Kling for that clip**.
 
 ---
 
+## R21. Crime-Associated Vocabulary Triggers Ark Content Policy (MAJOR)
+
+**Added after:** 2026-04-18 "Courier Chronicles" 8-clip regression test,
+scene 6. Prompt used phrases "burner phone" + "未知来电"(unknown call)
+plus noir narrative framing of a tense phone pickup. Ark rejected with:
+> `error: "policy_violation_output"`
+
+This is a **different filter** from R20 (copyright). R20 fires on iconic
+visual archetypes; R21 fires on **narrative vocabulary associated with
+crime, drugs, weapons, or illicit communications**.
+
+### What
+
+Ark's content policy scans prompt text for words/phrases that map to
+criminal/illicit contexts and refuses to generate output that reads as
+promoting those activities. The filter is semantic, not keyword-exact —
+it reads intent from the phrase combination.
+
+### Common triggers observed or expected
+
+- **Communication-illicit**: "burner phone", "未知来电" + clandestine
+  handoff context, "throw away sim", "encrypted call"
+- **Drug-associated**: "handoff", "drop" + product, "gram", "kilo",
+  "stash", "deal"
+- **Weapon-adjacent**: "silencer", "drawing a weapon", "finger on
+  trigger", detailed firearm descriptions
+- **Violent vocabulary**: "stab", "shoot", graphic fight wounds, blood
+  pooling descriptions
+- **Illicit-commerce**: "cash drop", "black market", "underground deal"
+
+Note: Seedance is OK with **atmospheric noir**(a mysterious exchange,
+a silent handover, a rainy alley) but trips on **explicit criminal
+framing**(naming the transaction as illegal, using the specialist
+vocabulary of the trade).
+
+### Detection checklist
+
+Before submitting a noir/thriller/crime prompt:
+
+1. Scan for the trigger word list above.
+2. If any hits, consider whether the word is **load-bearing**(the scene
+   genuinely needs that word) or just atmospheric (a neutral equivalent
+   would serve). Use neutral equivalents where possible:
+   - "burner phone" → "vintage flip phone" / "老式翻盖手机"
+   - "未知来电" → "来电" / "incoming call"
+   - "cash drop" → "exchange" / "meeting"
+   - "underground deal" → "private meeting" / "quiet exchange"
+3. If the trigger word is truly load-bearing (crime drama's whole point),
+   switch to Kling skill — Kling's content policy is more permissive
+   than Ark's.
+
+### Observed
+
+The s6 retry with "vintage flip phone" + "incoming call"(instead of
+"burner phone" + "未知来电") passed without filter issue — atmosphere
+preserved, vocabulary neutralized.
+
+### Severity
+
+Major pre-emptively. Filter rejection costs ~255 credits per attempt.
+A noir production is especially prone since the genre is built around
+crime narrative — proactively neutralize vocabulary, don't pay 255
+credits to discover the filter.
+
+---
+
 ## Future rules (to add as new bugs surface)
 
-- R21: Lighting direction consistency across shots
-- R22: Sound / dialogue reference sanity
-- R23: Genre-tone consistency
-- R24: Dynamic range / contrast warnings
+- R22: Lighting direction consistency across shots
+- R23: Sound / dialogue reference sanity
+- R24: Genre-tone consistency
+- R25: Dynamic range / contrast warnings
 
 ## Rule library evolution log
 
@@ -867,4 +933,5 @@ to Kling for that clip**.
 | v4 | R16 added | 《末班车》v5 c02 v2 dogfood: cross-shot temporal break due to relative direction + ref_image tug. Needed explicit absolute positioning + negation rule. |
 | v5 | R17 added | User observation during《末班车》v5: Woman hands file to man but still carries file out. Seedance doesn't "update" prop ownership after exchange — phantom duplicate prop persists on giver. Needs double-state-update language. |
 | v6 | R18, R19 added | 2026-04-18 drama + anime validation tests (text-only t2v): drama paper-bag-rip physics skipped (R18); anime cel-shaded style overridden by photoreal default (R19). Both critical/major failures per Gemini. |
-| **v7** | **R20 added** | **2026-04-18 "The Drop" Phase 3 integration test: fedora+three-piece+goatee buyer description triggered Ark copyright filter, clip rejected with 255 credits sunk cost. Any iconic character archetype combination must be pre-emptively rewritten with generic descriptors.** |
+| v7 | R20 added | 2026-04-18 "The Drop" Phase 3 integration test: fedora+three-piece+goatee buyer description triggered Ark copyright filter, clip rejected with 255 credits sunk cost. Any iconic character archetype combination must be pre-emptively rewritten with generic descriptors. |
+| **v8** | **R21 added** | **2026-04-18 "Courier Chronicles" regression test s6: "burner phone" + "未知来电" triggered Ark content policy (`policy_violation_output`). Distinct from R20 copyright filter. Neutralize crime-specialist vocabulary pre-emptively.** |

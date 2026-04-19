@@ -26,8 +26,10 @@ fi
 
 SIZE=$(stat -f%z "$VIDEO" 2>/dev/null || stat -c%s "$VIDEO")
 
+HDR_FILE="/tmp/.qa_upload_h_$$_${RANDOM}.txt"
+
 # Start resumable
-curl -s -D /tmp/.qa_upload_h.txt -o /dev/null \
+curl -s -D "$HDR_FILE" -o /dev/null \
   -X POST "https://generativelanguage.googleapis.com/upload/v1beta/files?key=${KEY}" \
   -H "X-Goog-Upload-Protocol: resumable" \
   -H "X-Goog-Upload-Command: start" \
@@ -36,7 +38,8 @@ curl -s -D /tmp/.qa_upload_h.txt -o /dev/null \
   -H "Content-Type: application/json" \
   -d "{\"file\":{\"display_name\":\"${DISPLAY}\"}}"
 
-UPLOAD_URL=$(grep -i "X-Goog-Upload-URL:" /tmp/.qa_upload_h.txt | cut -d' ' -f2 | tr -d '\r')
+UPLOAD_URL=$(grep -i "X-Goog-Upload-URL:" "$HDR_FILE" | cut -d' ' -f2 | tr -d '\r')
+rm -f "$HDR_FILE"
 
 # Upload bytes
 RESP=$(curl -s -X POST "$UPLOAD_URL" \
