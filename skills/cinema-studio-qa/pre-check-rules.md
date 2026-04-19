@@ -1227,12 +1227,113 @@ individual clips are masterpieces.
 
 ---
 
+## R26. Editing Plan Must Be Produced in Phase A, Before Any Asset Generation (CRITICAL)
+
+**Added after:** 2026-04-18 user feedback on Courier Chronicles v2:
+"整部剧那你在最开始做的时候也要考虑到剪辑方案呀" — the editing/montage
+plan should be decided **before** generation starts, not patched in
+after the fact. The v2 failures (motorcycle leaves twice, hard cut to
+rooftop, no bridging) all trace back to me writing scene prompts
+without first drafting a cut plan for the whole film.
+
+### What
+
+Phase A (script parser) must produce TWO artifacts, not one:
+
+1. **`scene_list.json`** (already specified) — scenes, characters,
+   props, continuity requires.
+2. **`editing_plan.md`** (NEW) — how scenes connect, pacing, transition
+   types, cross-clip prop handoffs, which beats are redundant and
+   must be merged.
+
+### Required sections in `editing_plan.md`
+
+```markdown
+# Editing Plan — <title>
+
+## Total runtime target
+<e.g. 120s>
+
+## Scene sequence with transitions
+1. s1 Arrival (15s) — HARD CUT to s2
+2. s2 Exchange (15s) — HARD CUT to s3
+3. s3 Mount+Ignite+RideOut (15s, MERGED from draft s3+s4) — BRIDGE clip to s5
+4. bridge (15s) — transit shot, garage exit → rooftop parking
+5. s5 Rooftop Arrival (15s) — HARD CUT to s6
+...
+
+## Transition types (R25 compliance)
+- Every location change must be bridged (bridge_clip / time_cut / match_cut).
+- Adjacent scenes within same location use hard cut.
+
+## Pacing strategy
+- Opening act (s1-s2): slow build, atmospheric
+- Middle act (s3-s4): acceleration, action
+- Climax (s5-s7): emotional peak
+- Coda (s8): isolation resolution
+
+## Recurring props requiring ref (R24 compliance)
+- Motorcycle (appears in s1/s3/s4/s5 — needs ref)
+- Briefcase (only in s2 — no ref needed, generated from prompt)
+- Phone (appears in s6/s7 — needs ref)
+
+## Redundancy elimination
+- Original script had s3 (mount+ignite) + s4 (tunnel exit) — same
+  narrative beat (leaving the garage). MERGE into one 15s clip.
+- Avoid writing two clips where one suffices.
+
+## Cross-clip state handoffs
+- s2 end: Courier hands empty, Buyer has briefcase → s3 starts with
+  empty-handed Courier
+- s4 end: Courier on motorcycle exiting garage → bridge starts with
+  motorcycle mid-ride
+- bridge end: motorcycle arrives at rooftop → s5 starts with bike
+  already parked
+```
+
+### Detection (Phase F pre-check)
+
+Before Phase G generation:
+
+1. Does `editing_plan.md` exist?
+2. For every scene pair (N, N+1): is the transition type declared?
+3. For every location change: is the transition one of
+   {bridge_clip, time_cut, match_cut}?
+4. Are any beats functionally duplicated (both "leaving" / both
+   "arriving" / both "waiting")? Merge or delete.
+5. Are recurring props listed with ref requirement flagged?
+6. Does Phase C ref_map cover every "needs ref" flagged entity?
+
+If any fail → block, return to Phase A to revise plan.
+
+### Why this was not R1-R23
+
+R1-R23 are per-clip / per-shot / per-prompt rules. R26 is the ONLY
+rule that operates at the **whole-production level** before any clip
+exists. Without R26, individual clips can each pass R1-R25 yet the
+final film reads as disconnected shots. R26 ensures narrative
+skeleton is designed, not discovered.
+
+### Cost impact
+
+R26 itself is free (Claude reasoning). But R26 prevents waste: the
+Courier Chronicles v2 had a redundant s3 clip ($0.85) and a missing
+bridge ($0.85) — exactly $1.70 of "could have been prevented by R26"
+waste in one production. For longer productions the prevented waste
+grows linearly.
+
+### Severity
+
+Critical. Production-level thinking precedes clip-level thinking.
+
+---
+
 ## Future rules (to add as new bugs surface)
 
-- R26: Lighting direction consistency across shots
-- R27: Sound / dialogue reference sanity
-- R28: Genre-tone consistency
-- R29: Dynamic range / contrast warnings
+- R27: Lighting direction consistency across shots
+- R28: Sound / dialogue reference sanity
+- R29: Genre-tone consistency
+- R30: Dynamic range / contrast warnings
 
 ## Rule library evolution log
 
