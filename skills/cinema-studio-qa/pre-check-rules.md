@@ -1524,12 +1524,86 @@ applied correctly.
 
 ---
 
+## R30. Dialog Conventions — Per-Clip Lines + "no captions" Compatible (MAJOR, pre-test draft)
+
+**Added pre-emptively before the first dialog drama test.** Seedance
+2.0 supports phoneme-level lip-sync + joint audio generation, and the
+seedance SKILL.md already has basic guidance (`@图片1 says: "台词"`),
+but no unified rule governs cross-clip dialog coherence. This rule is
+a draft to be validated by the first dialog production.
+
+### What
+
+1. **Each clip's prompt must state the complete dialog line(s) for
+   that clip inline**. Seedance's per-call generation does NOT
+   maintain conversation state across `/generate-video` calls.
+   Clip N knowing "the previous clip ended mid-sentence" doesn't
+   carry to Clip N+1 unless the prompt restates context.
+
+2. **Dialog format inside prompts:**
+   ```
+   @图片1 Woman, 平静压抑的音调: "你还好吗。"
+   (2 秒停顿)
+   @图片2 Man, 低沉嘶哑: "好多了。"
+   ```
+   - Per-speaker ref token + tone descriptor + quoted line + pause length.
+   - Tone words are load-bearing — they drive voice selection.
+   - Use Chinese punctuation for Chinese dialog (句号 in "你还好吗。"
+     signals a statement ending, not question — distinct from 问号).
+
+3. **R23 "clean frame no captions" is audio-compatible.** "No
+   subtitles / no captions / no on-screen text" is a VISUAL directive
+   only; Seedance interprets it correctly as "don't burn text onto the
+   frame". Dialog audio still renders normally. Always include the
+   clean-frame directive even with dialog — otherwise Seedance may
+   add subtitle overlay ("translation" of the dialog) which looks
+   amateur.
+
+4. **Voice consistency across clips (open question for the test)**:
+   Seedance may pick a slightly different voice per clip if only the
+   visual character ref is supplied. `ref_audio_urls` parameter accepts
+   audio references (up to 3) for voice/tone matching. For dialog-
+   heavy productions, consider recording a 3-5s reference line per
+   character and passing via `ref_audio_urls`.
+
+   **TEST: does dialog voice stay consistent across clips with only
+   visual refs?** Answer determines if R30 needs a "voice ref
+   mandatory" extension.
+
+5. **Dialog pacing**: short lines (< 1.5s speaking) don't need
+   internal timestamps. Longer exchanges should explicitly declare
+   timing per line:
+   ```
+   [00:00-00:03] @图片1 says (composed): "你还好吗。"
+   [00:03-00:05] silence; @图片2 adjusts his coffee cup.
+   [00:05-00:08] @图片2 says (quiet, low): "好多了。"
+   ```
+
+6. **Lip-sync trigger words**: Seedance responds to dialog cues
+   formatted as `<character> says: "<line>"` OR `@图片N 说: "<台词>"`.
+   Freeform "他开口说话" is weaker — phrase the dialog as an
+   explicit say-verb construction.
+
+### Known unknowns (this rule may need revision after test)
+
+- Does voice drift across multiple 15s clips using only visual char ref?
+- How long can a single dialog line be before Seedance compresses it?
+- Do subtitles still appear when raw_prompt=true + clean-frame text?
+
+### Severity
+
+Major pre-emptive. Dialog drama is the first domain where we'll see
+audio-specific failure modes not captured in R1-R29. Use as baseline
+before the first dialog test; revise after.
+
+---
+
 ## Future rules (to add as new bugs surface)
 
-- R30: Lighting direction consistency across shots
-- R31: Sound / dialogue reference sanity
-- R32: Genre-tone consistency
-- R33: Dynamic range / contrast warnings
+- R31: Lighting direction consistency across shots
+- R32: Sound / dialogue reference sanity (more specific after R30 validation)
+- R33: Genre-tone consistency
+- R34: Dynamic range / contrast warnings
 
 ## Rule library evolution log
 
@@ -1547,4 +1621,5 @@ applied correctly.
 | v10 | R23 added (supersedes R1 in importance) | 2026-04-18 user hypothesis confirmed via Phoenix codebase review: the Ark video provider routes prompts through Gemini Flash LLM enhancement by default, collapsing my structured `[00:XX-YY] 镜头N:` blocks into a single unified cinematic description before they reach Seedance. ALL prior single-shot "failures" (c04 isolation, drama/jazz tests, 5/8 Courier Chronicles clips, 末班车 c04) were caused by Phoenix's enhancer, not by Seedance. Fix: set `raw_prompt: true` in the API payload to bypass enhancement. This single flag is more load-bearing than R1-R22 combined because without it, the other rules are literally discarded upstream. |
 | v11 | R24 + R25 added | 2026-04-18 user feedback on Courier Chronicles v2 (after R22+R23 applied): "摩托车离开了两次...场景连贯性不够". Verified 3 different motorcycles ridden by same Courier across s1/s3/s4 (R24: props need their own refs), and garage→rooftop jumped with no transit bridge (R25: location transitions need bridge clip / time-cut signal / match cut). |
 | v12 | R26 added | 2026-04-18 user: "整部剧那你在最开始做的时候也要考虑到剪辑方案呀". Editing plan is Phase A MANDATORY output, not ad-hoc discovered per-clip. |
-| **v13** | **R27 + R28 + R29 added** | **2026-04-18 reading《Seedance 之后,AI 视频分镜只做关键帧》by 小石学长 / 西羊石 AI视频. Extracted 3 new rules: R27 (image-first pipeline for complex/emotion/rescue shots), R28 (six-field prompt skeleton 风格+景别+主体+环境+光影+质感), R29 (9-panel storyboard explosion via nano-banana to generate continuous shots in one go).** |
+| v13 | R27 + R28 + R29 added | 2026-04-18 reading《Seedance 之后,AI 视频分镜只做关键帧》by 小石学长 / 西羊石 AI视频. Extracted 3 new rules: R27 (image-first pipeline for complex/emotion/rescue shots), R28 (six-field prompt skeleton 风格+景别+主体+环境+光影+质感), R29 (9-panel storyboard explosion via nano-banana to generate continuous shots in one go). |
+| **v14** | **R30 added (pre-emptive, pre-first-dialog-test)** | **2026-04-18 user requested 1-min dialog drama as skill test. No existing rule governed cross-clip dialog coherence. R30 drafts conventions for per-clip dialog lines, tone descriptors, R23 clean-frame compatibility, voice-ref strategy, and lip-sync trigger words. Rule is draft; revise after first test reveals actual failure modes.** |
