@@ -479,8 +479,48 @@ Evaluate these conditions:
 2. Same scene continues?
 3. Prop state dependency?
 4. Eye-line / character pose continuity?
+5. **Progressive physical state change?** (door opening gradually, light
+   dimming, character changing position in small increments)
+6. **New detail introduced in N must persist in N+1?** (blood stain
+   appears in N, should still be there in N+1)
 
 If ANY true → **`transition_type: chained_with_reframe`** (not just "chained").
+
+### Decision matrix — whole-production chain vs parallel vs partial
+
+For a production with N clips, decide at Phase A editing plan level:
+
+| Scenario | Recommendation | Reasoning |
+|---|---|---|
+| All clips in SAME location with progressive state(door opens gradually, character ages, object degrades) | **Full chain** (s1 → s2 → s3 → ...) | State carries reliably only via extracted-frame refs |
+| All clips in SAME location, no progressive state(same scene, different camera angles) | **Partial chain**: only the pairs with character/prop state handoff | Characters + location refs hold consistency; chain only when state changes |
+| Clips span MULTIPLE locations, no cross-location carry | **Parallel for independent clips** + **chain within each location cluster** | Inter-location state doesn't matter; intra-location does |
+| Single action performed across multiple clips(folio handoff over 3 shots) | **Full chain** | Prop ownership state is load-bearing |
+| Multiple independent scenes(anthology style, no returning characters) | **Fully parallel** | No state to carry |
+| **2-character dialog drama in 1 location**(e.g.《Room 207》) | **Full chain recommended** | Door / facial expression / micro-state all progressive |
+
+### Time-vs-quality tradeoff
+
+| Strategy | Time | Boundary quality | Cost |
+|---|---|---|---|
+| Fully parallel (8 clips ~ 6 min) | Fastest | Risky on state transitions | Cheapest |
+| Partial chain (chain 2-3 critical pairs, parallel rest) | Medium (10-15 min) | Good on critical, okay elsewhere | Same as parallel |
+| Full chain (sequential) | Slowest (20+ min for 4 clips) | Cleanest | Same credit cost |
+
+**Rule of thumb**:
+- Budget ≤ $10, ≤4 clips, strong state progression → **full chain**
+- Budget > $20, ≥6 clips, 2+ locations → **partial chain** (chain only intra-location high-state-progression pairs)
+- Anthology / independent beats → **fully parallel**
+
+### Partial chain concrete example
+
+For an 8-clip production with 2 locations (4 in garage, 4 on rooftop):
+- Garage cluster s1-s4: chain s1→s2→s3→s4 (character+motorcycle state progressive)
+- Rooftop cluster s5-s8: chain s5→s6→s7→s8 (phone state progressive)
+- Between clusters s4 → s5: **bridge clip** (per R25) + parallel OK for bridge
+
+Total chain pairs: 6 (3 intra-garage + 3 intra-rooftop). Parallel: 0. Bridge: 1.
+Time ~30 min vs parallel ~10 min, but state integrity preserved.
 
 ### Correct workflow (pro-grade, per user insight)
 
@@ -1622,4 +1662,5 @@ before the first dialog test; revise after.
 | v11 | R24 + R25 added | 2026-04-18 user feedback on Courier Chronicles v2 (after R22+R23 applied): "摩托车离开了两次...场景连贯性不够". Verified 3 different motorcycles ridden by same Courier across s1/s3/s4 (R24: props need their own refs), and garage→rooftop jumped with no transit bridge (R25: location transitions need bridge clip / time-cut signal / match cut). |
 | v12 | R26 added | 2026-04-18 user: "整部剧那你在最开始做的时候也要考虑到剪辑方案呀". Editing plan is Phase A MANDATORY output, not ad-hoc discovered per-clip. |
 | v13 | R27 + R28 + R29 added | 2026-04-18 reading《Seedance 之后,AI 视频分镜只做关键帧》by 小石学长 / 西羊石 AI视频. Extracted 3 new rules: R27 (image-first pipeline for complex/emotion/rescue shots), R28 (six-field prompt skeleton 风格+景别+主体+环境+光影+质感), R29 (9-panel storyboard explosion via nano-banana to generate continuous shots in one go). |
-| **v14** | **R30 added (pre-emptive, pre-first-dialog-test)** | **2026-04-18 user requested 1-min dialog drama as skill test. No existing rule governed cross-clip dialog coherence. R30 drafts conventions for per-clip dialog lines, tone descriptors, R23 clean-frame compatibility, voice-ref strategy, and lip-sync trigger words. Rule is draft; revise after first test reveals actual failure modes.** |
+| v14 | R30 added (pre-emptive, pre-first-dialog-test) | 2026-04-18 user requested 1-min dialog drama as skill test. No existing rule governed cross-clip dialog coherence. R30 drafts conventions for per-clip dialog lines, tone descriptors, R23 clean-frame compatibility, voice-ref strategy, and lip-sync trigger words. Rule is draft; revise after first test reveals actual failure modes. |
+| **v15** | **R15 enhanced** | **2026-04-18 user pre-submit question on Room 207 thriller: "4 个 clip 并行会不会跳". R15 expanded from abstract "chain vs parallel" to concrete decision matrix + partial-chain pattern + time-vs-quality tradeoffs. Added 5th/6th detection condition (progressive physical state, new detail persistence). Chose full-chain for Room 207 based on progressive door opening + blood-stain persistence across 4 clips.** |
