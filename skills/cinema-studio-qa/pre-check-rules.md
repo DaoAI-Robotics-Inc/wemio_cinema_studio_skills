@@ -1638,12 +1638,78 @@ before the first dialog test; revise after.
 
 ---
 
+## R31. Extract-Frame Chain Fallback When Ark Compliance Fails (MAJOR)
+
+**Added after:** 2026-04-18 Room 207 thriller chain attempt. S1 generated
+successfully. `/extract-frame which=last` returned the tail frame PNG
+URL. Compliance check via `POST /api/compliance/check-by-url` repeatedly
+returned `ark.invalidparameter.downloadfailed` on that PNG URL. Ark's
+fetcher can't download the extract-frame PNG, blocking the entire chain.
+This happened despite the SAME flow working earlier in the day on《末班车》
+and《Courier Chronicles》.
+
+### What
+
+Ark's compliance fetcher is NOT 100% reliable on extract-frame PNG URLs
+from the `/images/` CDN path. Possible root causes:
+- Ark IP / user-agent / mime-type quirks
+- CDN propagation lag (not fixed by waiting 30-60s)
+- Transient Ark side outage (today was partition-bad)
+
+### Detection
+
+Compliance status fails with `ark.invalidparameter.downloadfailed` on any
+URL from `/api/cinema-studio/generations/{id}/extract-frame`.
+
+### Fallback strategy (ordered preference)
+
+1. **Retry 2-3 times over 3 minutes** — occasionally Ark recovers.
+2. **Re-extract a DIFFERENT frame** (try `which=middle` or a specific
+   timestamp). Sometimes a different PNG gets through.
+3. **Reupload via `/api/cinema-studio/upload`** — DOES NOT help for
+   compliance (the upload endpoint puts files in `cinema-studio-refs/`
+   bucket which compliance check reports "Asset not found for URL").
+4. **Give up on chain, fall back to parallel**. Submit the remaining
+   clips in parallel with STRONG prompt-level state anchoring:
+   - Each clip's prompt opening says explicitly: "This shot opens
+     from state X: door is already 8 inches open, Man visible
+     in gap, Courier holding package"
+   - Relies on R16 absolute position rule, no tail-frame ref
+   - Accept: state-progression continuity will be slightly worse
+5. **Or: Kling extract-frame** — Kling has its own extract-frame
+   endpoint that routes through a different compliance path. May
+   succeed when Seedance's fails. If the production allows provider
+   mixing, chain via Kling extract instead.
+
+### When to abandon chain entirely
+
+If 3 consecutive extract-frame+compliance attempts fail on DIFFERENT
+frames, Ark's fetcher is having a bad day — don't keep burning time.
+Switch to parallel with anchoring and document the production as
+"chain attempted, degraded to parallel due to compliance outage".
+
+### Recovery rule of thumb
+
+- **Under 20 min time budget** → parallel fallback after 1 failed
+  compliance attempt
+- **Under 4 hour time budget** → retry up to 3 times then fall back
+- **Critical production for delivery** → try Kling as alternate chain
+  provider
+
+### Severity
+
+Major. This rule prevents entire productions from stalling when
+platform has transient issues. The skill must gracefully degrade;
+"chain only" is too fragile as a hard requirement.
+
+---
+
 ## Future rules (to add as new bugs surface)
 
-- R31: Lighting direction consistency across shots
-- R32: Sound / dialogue reference sanity (more specific after R30 validation)
-- R33: Genre-tone consistency
-- R34: Dynamic range / contrast warnings
+- R32: Lighting direction consistency across shots
+- R33: Sound / dialogue reference sanity (more specific after R30 validation)
+- R34: Genre-tone consistency
+- R35: Dynamic range / contrast warnings
 
 ## Rule library evolution log
 
@@ -1663,4 +1729,5 @@ before the first dialog test; revise after.
 | v12 | R26 added | 2026-04-18 user: "整部剧那你在最开始做的时候也要考虑到剪辑方案呀". Editing plan is Phase A MANDATORY output, not ad-hoc discovered per-clip. |
 | v13 | R27 + R28 + R29 added | 2026-04-18 reading《Seedance 之后,AI 视频分镜只做关键帧》by 小石学长 / 西羊石 AI视频. Extracted 3 new rules: R27 (image-first pipeline for complex/emotion/rescue shots), R28 (six-field prompt skeleton 风格+景别+主体+环境+光影+质感), R29 (9-panel storyboard explosion via nano-banana to generate continuous shots in one go). |
 | v14 | R30 added (pre-emptive, pre-first-dialog-test) | 2026-04-18 user requested 1-min dialog drama as skill test. No existing rule governed cross-clip dialog coherence. R30 drafts conventions for per-clip dialog lines, tone descriptors, R23 clean-frame compatibility, voice-ref strategy, and lip-sync trigger words. Rule is draft; revise after first test reveals actual failure modes. |
-| **v15** | **R15 enhanced** | **2026-04-18 user pre-submit question on Room 207 thriller: "4 个 clip 并行会不会跳". R15 expanded from abstract "chain vs parallel" to concrete decision matrix + partial-chain pattern + time-vs-quality tradeoffs. Added 5th/6th detection condition (progressive physical state, new detail persistence). Chose full-chain for Room 207 based on progressive door opening + blood-stain persistence across 4 clips.** |
+| v15 | R15 enhanced | 2026-04-18 user pre-submit question on Room 207 thriller: "4 个 clip 并行会不会跳". R15 expanded from abstract "chain vs parallel" to concrete decision matrix + partial-chain pattern + time-vs-quality tradeoffs. Added 5th/6th detection condition (progressive physical state, new detail persistence). Chose full-chain for Room 207 based on progressive door opening + blood-stain persistence across 4 clips. |
+| **v16** | **R31 added** | **2026-04-18 Room 207 chain step 2 failed: Ark compliance repeatedly returned `ark.invalidparameter.downloadfailed` on s1 extract-frame PNG. Same flow had worked earlier in the day on 末班车 + Courier Chronicles. R31 documents the fallback ladder: retry 3x → re-extract different frame → parallel + anchor fallback → Kling as alternate provider. Skill must gracefully degrade when Ark has transient issues.** |
