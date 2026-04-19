@@ -168,7 +168,16 @@ Critical R20 triggers to scan for:
 Rewrite with generic descriptors that preserve mood but avoid the
 iconic combination.
 
-### Phase G — Generate
+### Phase G — Generate (MANDATORY raw_prompt + refs)
+
+**Every Seedance clip payload MUST include:**
+- `raw_prompt: true` — skips Phoenix LLM enhancer that flattens
+  structured prompts (R23)
+- `reference_image_urls: [...]` — for character + location
+  consistency (R22)
+- `@图片N` tokens in the prompt text map to the `reference_image_urls`
+  array positions
+- Prompt ends with: `"clean frame, no subtitles, no captions, no on-screen text"` — raw mode skips the auto-added anti-subtitle directives
 
 Determine chain-vs-parallel per R15:
 - Clip N+1 has visual dependency on Clip N's output state? → serial
@@ -180,6 +189,23 @@ Determine chain-vs-parallel per R15:
 Submit via `/api/cinema-studio/generate-video` with the provider-
 specific payload. Poll via background task (pattern established in
 existing Seedance/Kling skills).
+
+Example complete payload:
+```json
+{
+  "project_id": "...",
+  "prompt": "场景参考 @图片2。[00:00-00:05] 镜头1: @图片1 Courier 骑摩托车... clean frame, no subtitles, no captions, no on-screen text",
+  "reference_image_urls": ["<courier_ref>", "<garage_ref>"],
+  "duration": 15,
+  "sound": true,
+  "video_genre": "suspense",
+  "aspect_ratio": "16:9",
+  "resolution": "480p",
+  "video_provider": "ark",
+  "model": "seedance-2.0",
+  "raw_prompt": true
+}
+```
 
 ### Phase H — Dual-judgment post-check
 

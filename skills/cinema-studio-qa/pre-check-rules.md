@@ -1083,12 +1083,156 @@ SELECT keyword, secret_prompt, prompt_mode FROM cinema_generations WHERE id = '<
 
 ---
 
+## R24. Recurring Props Need Their Own Reference Image (MAJOR)
+
+**Added after:** 2026-04-18 user viewing feedback on《Courier Chronicles》
+v2: "摩托车离开了两次". Verified: s1 shows Honda CBR sport bike, s3
+shows classic cafe racer, s4 shows BMW boxer cruiser — three completely
+different motorcycles ridden by the same Courier across consecutive
+clips. v2 Phase C generated refs for Courier + Buyer + garage + rooftop,
+but skipped the motorcycle — so Seedance regenerated the bike each
+time.
+
+### What
+
+R22 required character + location refs. R24 extends this: **any prop
+that appears in ≥2 clips AND whose visual identity matters to the
+narrative needs its own reference image** in Phase C.
+
+Examples:
+- Motorcycle / car / any vehicle
+- Weapon (gun / katana / sword)
+- Musical instrument
+- Recognizable costume piece (if used outside the character ref sheet)
+- Distinctive piece of jewelry
+- Any prop exchanged between characters (briefcase, folio, letter, key)
+
+Note: the briefcase in《Courier Chronicles》DID stay consistent without
+a dedicated ref because it appeared in only one clip (s2). But the
+motorcycle appeared in 5+ clips and drifted. Rule of thumb: **prop
+appears in 2+ clips → needs ref**.
+
+### Phase C expansion
+
+When generating Phase C assets, enumerate all props with ≥2-clip
+appearance AND generate a ref image for each:
+
+```bash
+# Prop ref generation (uses same generate-location endpoint, prompt
+# describes the prop on a neutral background):
+curl -X POST /api/cinema-studio/generate-location \
+  -d '{"prompt": "Matte black Honda CBR sport motorcycle, studio product shot, neutral gray backdrop, multiple angles: front 3/4, side profile, rear 3/4. Photorealistic, cinematic lighting.", ...}'
+```
+
+### Ref image order in reference_image_urls
+
+Canonical order when clip uses character + location + prop:
+```
+[character_refs..., prop_refs..., location_ref]
+```
+
+With `@图片N` tokens:
+- `@图片1` = Courier (character)
+- `@图片2` = motorcycle (prop)
+- `@图片3` = garage (location)
+
+### Severity
+
+Major. Prop drift is visually jarring for viewers — immediately breaks
+suspension of disbelief.
+
+### Cost
+
+~30-50 credits per prop ref (~$0.15-0.25). For a production with 2-3
+recurring props, ~$0.75 added to Phase C budget. Saves re-shoots.
+
+---
+
+## R25. Location Transitions Need Narrative Bridging (MAJOR)
+
+**Added after:** 2026-04-18 user viewing feedback on《Courier Chronicles》
+v2: "场景连贯性不够...场景的变化". Verified: s4 ends with Courier
+riding motorcycle out of garage tunnel. s5 opens with Courier already
+parked on rooftop. No physical bridge between locations — it's a hard
+cut that feels teleportation-like.
+
+### What
+
+When the script crosses between two locations (e.g. garage → rooftop,
+bar → street, indoor → outdoor), the edit needs either:
+
+1. **Bridge clip**: a 5-15s shot showing the character's journey
+   between locations (driving through streets, walking into elevator,
+   emerging from doorway). Explicit physical transit.
+2. **Time-cut signal**: if no bridge, the incoming scene must have an
+   explicit "later" / "much later" / time-of-day change signaled
+   visually (different weather, different light, time indicator on
+   clock). Viewer reads it as "time passed, location changed".
+3. **Match-cut hook**: match an element across locations (a spinning
+   object → a spinning rooftop fan; a closing door → a door opening
+   elsewhere). Requires precise cross-clip planning.
+
+Without at least one of these, consecutive clips in different locations
+**register as jump cuts / unexplained teleportation**, regardless of how
+visually beautiful each clip is individually.
+
+### Detection (during Phase A script parsing)
+
+For each adjacent scene pair, check if `location_ref` differs. If yes,
+check the transition strategy:
+
+```python
+if scene_N.location_ref != scene_N+1.location_ref:
+    assert scene_N+1.transition in {
+        "bridge_clip_before",
+        "time_cut_signaled",
+        "match_cut_to_prev",
+    }, "R25 violation: location jump without bridging"
+```
+
+### Fix templates
+
+**Option 1: insert a bridge clip before the location change.**
+```
+Scene N: Courier in garage, exits on motorcycle.
+Scene N+1 (BRIDGE, 10s): Motorcycle speeds through rainy empty
+  streets of the city, long tracking aerial. Shows transit between
+  locations. No dialogue.
+Scene N+2: Courier already parked on rooftop, walks to edge.
+```
+
+**Option 2: time-cut with visual indicator.**
+```
+Scene N ends: Courier rides motorcycle out of garage into dawn light.
+Scene N+1 opens: Deep midnight now. Courier on rooftop, rain heavy —
+  the lighting / weather change signals "later that night".
+```
+
+**Option 3: match cut.**
+```
+Scene N ends: ECU on motorcycle wheel spinning.
+Scene N+1 opens: ECU on rooftop HVAC fan blade spinning, match cut.
+```
+
+### Cost tradeoff
+
+Bridge clips add $0.85 each (Seedance 2.0 @ 480p 15s). For a 2-location
+production (2 bridges), +$1.70 total. Time-cut signals and match cuts
+add 0 cost but require more prompt-writing discipline.
+
+### Severity
+
+Major. Story becomes incoherent without resolved transitions even if
+individual clips are masterpieces.
+
+---
+
 ## Future rules (to add as new bugs surface)
 
-- R24: Lighting direction consistency across shots
-- R25: Sound / dialogue reference sanity
-- R26: Genre-tone consistency
-- R27: Dynamic range / contrast warnings
+- R26: Lighting direction consistency across shots
+- R27: Sound / dialogue reference sanity
+- R28: Genre-tone consistency
+- R29: Dynamic range / contrast warnings
 
 ## Rule library evolution log
 
@@ -1103,4 +1247,5 @@ SELECT keyword, secret_prompt, prompt_mode FROM cinema_generations WHERE id = '<
 | v7 | R20 added | 2026-04-18 "The Drop" Phase 3 integration test: fedora+three-piece+goatee buyer description triggered Ark copyright filter, clip rejected with 255 credits sunk cost. Any iconic character archetype combination must be pre-emptively rewritten with generic descriptors. |
 | v8 | R21 added | 2026-04-18 "Courier Chronicles" regression test s6: "burner phone" + "未知来电" triggered Ark content policy (`policy_violation_output`). Distinct from R20 copyright filter. Neutralize crime-specialist vocabulary pre-emptively. |
 | v9 | R22 added (the most important rule so far) | 2026-04-18 user first-viewing feedback on the 120s "Courier Chronicles" concat: "这个整体是一个故事吗?" Text-only t2v across 8 clips produced 8 different Couriers in 4 different garages and 4 different rooftops. No story. Multi-clip productions MUST use reference_image_urls; the $1 "saved" by skipping Phase C destroys the entire $13 production. |
-| **v10** | **R23 added (supersedes R1 in importance)** | **2026-04-18 user hypothesis confirmed via Phoenix codebase review: the Ark video provider routes prompts through Gemini Flash LLM enhancement by default, collapsing my structured `[00:XX-YY] 镜头N:` blocks into a single unified cinematic description before they reach Seedance. ALL prior single-shot "failures" (c04 isolation, drama/jazz tests, 5/8 Courier Chronicles clips, 末班车 c04) were caused by Phoenix's enhancer, not by Seedance. Fix: set `raw_prompt: true` in the API payload to bypass enhancement. This single flag is more load-bearing than R1-R22 combined because without it, the other rules are literally discarded upstream.** |
+| v10 | R23 added (supersedes R1 in importance) | 2026-04-18 user hypothesis confirmed via Phoenix codebase review: the Ark video provider routes prompts through Gemini Flash LLM enhancement by default, collapsing my structured `[00:XX-YY] 镜头N:` blocks into a single unified cinematic description before they reach Seedance. ALL prior single-shot "failures" (c04 isolation, drama/jazz tests, 5/8 Courier Chronicles clips, 末班车 c04) were caused by Phoenix's enhancer, not by Seedance. Fix: set `raw_prompt: true` in the API payload to bypass enhancement. This single flag is more load-bearing than R1-R22 combined because without it, the other rules are literally discarded upstream. |
+| **v11** | **R24 + R25 added** | **2026-04-18 user feedback on Courier Chronicles v2 (after R22+R23 applied): "摩托车离开了两次...场景连贯性不够". Verified 3 different motorcycles ridden by same Courier across s1/s3/s4 (R24: props need their own refs), and garage→rooftop jumped with no transit bridge (R25: location transitions need bridge clip / time-cut signal / match cut).** |

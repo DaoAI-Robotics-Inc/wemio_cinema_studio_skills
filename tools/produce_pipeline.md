@@ -184,7 +184,19 @@ characters-in-this-scene first, then location last).
 - Major warnings → flag, proceed (user can halt).
 - Minor → note only.
 
-### Phase G: Generate
+### Phase G: Generate — MANDATORY `raw_prompt: true` (R23)
+
+**Every Seedance clip payload MUST include `raw_prompt: true`.** Without
+it, Phoenix's Gemini Flash enhancer flattens the structured
+`[00:XX-YY] 镜头N:` blocks into a single continuous narrative — R1's
+subject-diversity rule gets discarded upstream. This is the single
+most important payload flag for multi-shot productions.
+
+Payload must also include:
+- `reference_image_urls` per R22 (character + location refs)
+- End of prompt: `"clean frame, no subtitles, no captions, no on-screen text, no watermark"` — because raw mode skips the auto-subtitle-prevention layer that the LLM enhancer would have added
+
+Flow:
 - R15 chain analysis: which clip pairs have visual dependency?
 - Chained pairs: serial submission (wait for N → extract-frame →
   submit to N+1's reference_image_urls).

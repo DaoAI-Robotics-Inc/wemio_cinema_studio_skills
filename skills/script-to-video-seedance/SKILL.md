@@ -673,8 +673,16 @@ POST /generate-video
   "resolution": "480p",
   "video_provider": "ark",
   "model": "seedance-2.0-fast",
+  "raw_prompt": true,
   "project_id": "<PROJECT_ID>"
 }
+```
+
+**🚨 `raw_prompt: true` 是 Seedance 的默认必传 (R23)**:Phoenix 后端默认会把你的结构化 prompt 丢给 Gemini Flash 改写,任何 `[00:XX-YY] 镜头N:` / 多 shot 结构 / R1 subject diversity 都会被压平成一句通用电影描述。`raw_prompt: true` 跳过这个步骤,你写的 prompt 直达 Seedance。**Skill 所有 Seedance generate-video 调用默认加 `raw_prompt: true`**,除非做**单句自然语言 prompt**(这时 LLM 增强反而有助于加 "clean frame, no subtitles" 防字幕)。
+
+**搭配**:raw_prompt 跳过自动防字幕注入,如果用 raw 模式**必须在 prompt 末尾手写**:
+```
+clean frame, no subtitles, no captions, no on-screen text, no watermark
 ```
 
 **关键**:prompt 里的 `@图片1` 对应 `reference_image_urls[0]`,
