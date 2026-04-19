@@ -1328,12 +1328,208 @@ Critical. Production-level thinking precedes clip-level thinking.
 
 ---
 
+## R27. Image-First Pipeline for 3 Specific Shot Types (MAJOR)
+
+**Added after:** 2026-04-18 reading《Seedance 之后,AI 视频分镜只做关键帧》
+by 小石学长 / 西羊石 AI视频. The article's central thesis: after
+Seedance 2.0, NOT every shot needs handcrafted keyframes. Only 3 shot
+types justify going through an image model FIRST (then i2v) instead
+of direct t2v:
+
+### Type 1: Extreme-complexity shots
+Multi-person tugging / complex blocking / heavy prop interaction /
+spatial relationships hard to verbalize.
+
+**Why**: t2v alone has high drop rate on these — model guesses wrong
+about spatial layout, hands intersect bodies, props clip through
+characters.
+
+**Fix**: generate a static keyframe via nano-banana / 即梦 first
+(anchoring the spatial relationship), then use that image as
+`first_frame_url` or `reference_image_urls[0]` for i2v.
+
+### Type 2: Emotion-static shots + still-life CU
+Establishing wides, suspense prop CUs, emotional pauses, flame /
+smoke / water / fabric material close-ups.
+
+**Why**: t2v "looks correct but doesn't look beautiful" on these —
+Seedance prioritizes action renderability over still composition.
+Image models (nano-banana, 即梦, Midjourney) win on aesthetic
+stillness.
+
+**Fix**: generate the keyframe with an image model (which bakes
+cinematic composition / material texture), then i2v to animate
+subtle motion (flame flicker, fabric drift, dust motes). Better than
+asking Seedance to "look still and beautiful" — it gives motion but
+compromises beauty.
+
+### Type 3: Long-clip partial collapse rescue
+The "first 8s perfect, last 2s face collapses / hands scramble /
+props glitch" pattern.
+
+**Why**: re-running the whole 15s clip throws away 8s of good
+material + re-rolls the stochastic dice that might fail elsewhere.
+
+**Fix workflow** (新流程, adopt this):
+1. Extract the frame just BEFORE collapse (via `/extract-frame`
+   with `which=<timestamp>`).
+2. Send that frame to nano-banana / 即梦 with a prompt describing
+   the correct next action.
+3. Take the corrected frame back as `first_frame_url` for a NEW
+   generation covering only the collapsed last 2s.
+4. Concat: original 0-8s + rescued 8-15s.
+
+This preserves 80%+ of the original material's value and costs
+~20% of a full re-run.
+
+### Decision tree for incoming shots
+
+```
+Is the shot one of {complex spatial, emotion-static, still-life CU}?
+  YES → keyframe via image model → i2v
+  NO  → direct t2v per standard pipeline
+```
+
+### Severity
+
+Major. Applying R27 cuts drop rate and cost on the shots most likely
+to fail, while leaving simple shots to the fast t2v path.
+
+---
+
+## R28. Six-Field Prompt Skeleton (REPLACES/EXTENDS R11 structural shape)
+
+**Added after:** same article (《Seedance 之后》). Formalizes the
+prompt structure used in the article's real project workflow:
+
+```
+风格/媒介 + 景别/视角 + 主体描述 + 环境场景 + 光影色调 + 质感修饰
+Style/Medium + Framing/POV + Subject Description + Environment + Lighting/Color + Texture Finishing
+```
+
+### Why
+
+R11 says "describe everything exhaustively" which can produce bloat.
+R28 gives an ordered skeleton so the exhaustive description has a
+canonical shape — easier for Claude to fill, easier for the prompt
+to consume.
+
+### The two load-bearing fields
+
+Article: "这套骨架里,最关键的其实只有两段:**主体描述**和**环境场景**"
+
+Weak vs strong subject description:
+- ❌ "一个很帅的霸总"(weak — sounds vivid but model can't
+  concretize)
+- ❌ "一个绝美古风女子"(same)
+- ✅ age + bone structure + hairstyle + outfit + action + gaze
+  direction + hand state (each specific)
+
+Weak vs strong environment:
+- ❌ "华丽的宫殿背景"
+- ✅ 屋内布局 + 家具材质 + 光源方向 + 时间 / 天气 + 画面景深
+  expectation
+
+### How to use
+
+When decomposing a scene per `decompose_scene.md`, structure each
+shot's prompt body in the six-field order:
+
+```
+[00:00-00:05] 镜头1 Title
+Style/Medium: 35mm film grain, neo-noir
+Framing/POV: 中景 side-on from audience LEFT
+Subject: Julian 45y detective, graying temples + three-day
+  stubble, charcoal trench collar up, hands in coat pockets,
+  gaze tracking RIGHT deep into tunnel, shoulders tense
+Environment: 地下车库 wet tile floor with puddles, tube sodium
+  lights flickering overhead, concrete pillars RIGHT of frame,
+  graffiti wall LEFT impassable, tunnel exit in deep BACK
+Lighting/Color: cool teal-green fluorescent + amber accent from
+  distant lamp, low-key chiaroscuro contrast
+Texture: wet concrete reflections, fabric of trench coat
+  drapes, slight film grain
+```
+
+### When to skip
+
+For very short natural-language scene descriptors (≤200 chars "A
+rainy street, a man walks"), the six-field skeleton is overkill.
+Use when prompt needs to be ≥500 chars and precision matters.
+
+### Severity
+
+Major. Adopt as default structure for multi-clip productions.
+
+---
+
+## R29. 9-Panel Storyboard Explosion (nano-banana pipeline)
+
+**Added after:** same article. Documents the workflow "一张好图,裂
+变出连续分镜":
+
+### What
+
+Once a high-quality base image exists (character ref + location ref
+composited into a single "hero frame"), ask nano-banana / 即梦 /
+Midjourney to generate a **9-panel grid** of continuous shots
+sampling that scene from different framings/angles in ONE
+generation. Then pick the best panels as keyframes and enlarge
+separately for i2v.
+
+### Why it's better than one-by-one manual
+
+- **Character + scene consistency within the single 9-panel grid**
+  is intrinsic (same seed, same composition context). Separate
+  shots generated independently drift.
+- **Speed**: 1 generation produces 9 candidate framings. Cheaper
+  than 9 separate generations.
+- **Closer to how film pre-production thinks** — a shot list
+  exported as contact sheet, then specific frames picked.
+
+### Workflow
+
+```
+1. Prepare assets (character ref + location ref) in Phase C.
+2. Compose a "hero frame" via nano-banana combining the refs.
+3. Prompt nano-banana: "Generate a 9-panel grid (3x3) of
+   continuous shots from this scene:
+   Shot 1: MS, OTS
+   Shot 2: CU, high tension
+   Shot 3: POV, low angle
+   Shot 4: FS, back view
+   Shot 5: MCU, OTS
+   ..."
+4. Pick the best 2-3 panels as keyframes.
+5. For each selected keyframe: enlarge via image model, use as
+   first_frame_url for i2v via Seedance.
+```
+
+### When to use
+
+- Drama scenes with >3 beats where cross-shot consistency matters
+- Shots where character/prop continuity has already drifted in t2v
+  attempts
+- Action sequences with multiple rapid cuts
+
+### When to skip
+
+- Simple single-shot clips
+- Time-lapse / environmental scenes with no recurring subjects
+
+### Severity
+
+Medium. Not mandatory but a significant force multiplier when
+applied correctly.
+
+---
+
 ## Future rules (to add as new bugs surface)
 
-- R27: Lighting direction consistency across shots
-- R28: Sound / dialogue reference sanity
-- R29: Genre-tone consistency
-- R30: Dynamic range / contrast warnings
+- R30: Lighting direction consistency across shots
+- R31: Sound / dialogue reference sanity
+- R32: Genre-tone consistency
+- R33: Dynamic range / contrast warnings
 
 ## Rule library evolution log
 
@@ -1349,4 +1545,6 @@ Critical. Production-level thinking precedes clip-level thinking.
 | v8 | R21 added | 2026-04-18 "Courier Chronicles" regression test s6: "burner phone" + "未知来电" triggered Ark content policy (`policy_violation_output`). Distinct from R20 copyright filter. Neutralize crime-specialist vocabulary pre-emptively. |
 | v9 | R22 added (the most important rule so far) | 2026-04-18 user first-viewing feedback on the 120s "Courier Chronicles" concat: "这个整体是一个故事吗?" Text-only t2v across 8 clips produced 8 different Couriers in 4 different garages and 4 different rooftops. No story. Multi-clip productions MUST use reference_image_urls; the $1 "saved" by skipping Phase C destroys the entire $13 production. |
 | v10 | R23 added (supersedes R1 in importance) | 2026-04-18 user hypothesis confirmed via Phoenix codebase review: the Ark video provider routes prompts through Gemini Flash LLM enhancement by default, collapsing my structured `[00:XX-YY] 镜头N:` blocks into a single unified cinematic description before they reach Seedance. ALL prior single-shot "failures" (c04 isolation, drama/jazz tests, 5/8 Courier Chronicles clips, 末班车 c04) were caused by Phoenix's enhancer, not by Seedance. Fix: set `raw_prompt: true` in the API payload to bypass enhancement. This single flag is more load-bearing than R1-R22 combined because without it, the other rules are literally discarded upstream. |
-| **v11** | **R24 + R25 added** | **2026-04-18 user feedback on Courier Chronicles v2 (after R22+R23 applied): "摩托车离开了两次...场景连贯性不够". Verified 3 different motorcycles ridden by same Courier across s1/s3/s4 (R24: props need their own refs), and garage→rooftop jumped with no transit bridge (R25: location transitions need bridge clip / time-cut signal / match cut).** |
+| v11 | R24 + R25 added | 2026-04-18 user feedback on Courier Chronicles v2 (after R22+R23 applied): "摩托车离开了两次...场景连贯性不够". Verified 3 different motorcycles ridden by same Courier across s1/s3/s4 (R24: props need their own refs), and garage→rooftop jumped with no transit bridge (R25: location transitions need bridge clip / time-cut signal / match cut). |
+| v12 | R26 added | 2026-04-18 user: "整部剧那你在最开始做的时候也要考虑到剪辑方案呀". Editing plan is Phase A MANDATORY output, not ad-hoc discovered per-clip. |
+| **v13** | **R27 + R28 + R29 added** | **2026-04-18 reading《Seedance 之后,AI 视频分镜只做关键帧》by 小石学长 / 西羊石 AI视频. Extracted 3 new rules: R27 (image-first pipeline for complex/emotion/rescue shots), R28 (six-field prompt skeleton 风格+景别+主体+环境+光影+质感), R29 (9-panel storyboard explosion via nano-banana to generate continuous shots in one go).** |
