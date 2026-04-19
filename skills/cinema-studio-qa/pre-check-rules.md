@@ -998,12 +998,97 @@ coherent film output.
 
 ---
 
+## R23. ALWAYS Send `raw_prompt: true` for Structured Shot Prompts (CRITICAL — the big one)
+
+**Added after:** 2026-04-18 Phoenix codebase review triggered by user
+hypothesis: "Phoenix 后端有 llm 增强,是不是 seedance 的 llm 增强反而让
+提示词信息没有了". Subagent code review at
+`apps/api/src/services/cinema_service.py:278-299` confirmed: when
+`raw_prompt=false` (default), Phoenix routes the user's prompt through
+`ArkVideoProvider.translate_prompt()` →
+`seedance_shot_llm.enhance_seedance_shot()` → Gemini Flash rewrites it
+into a **single unified cinematic description** using the 6-step
+Seedance formula (subject/action/environment/camera/style/constraint).
+
+The user's structured `[00:00-00:05] 镜头1: ... [00:05-00:10] 镜头2:
+...` blocks get **collapsed into one continuous narrative**. The
+original prompt is stored in `cinema_generations.keyword`; the rewritten
+version is stored in `secret_prompt` and is what Seedance actually
+receives.
+
+This explains ALL prior single-shot failures in Phase 2-3 validation:
+- 末班车 c04 "isolation" single shot
+- Drama/jazz tests single shot  
+- 5 of 8 Courier Chronicles clips single shot
+- Same prompt structure producing different results on retry (the LLM
+  rewrites differently each time — output is stochastic not because of
+  Seedance, but because of Phoenix's enhancer)
+
+### What
+
+For any prompt that uses structured per-shot markers (timestamps,
+`镜头1:`, `[00:XX-YY]`, `Shot N:`, etc.), set `raw_prompt: true` in
+the `POST /api/cinema-studio/generate-video` payload. This skips
+Phoenix's LLM enhancer and passes the prompt verbatim to Seedance/Ark.
+
+### Detection
+
+Before submitting any multi-shot or structurally-dependent prompt
+(including any prompt where you rely on R1 subject diversity), verify:
+
+1. Payload includes `raw_prompt: true`? If missing → critical fail.
+2. Response has `prompt_mode: "raw"`? If `"smart"` → enhancement ran,
+   my prompt was rewritten, result won't match intent.
+
+### When NOT to use raw_prompt
+
+For **single-subject single-shot natural-language prompts** (e.g. "A
+dramatic wide shot of a city skyline at sunset"), the LLM enhancer
+actually helps — it adds the mandatory anti-subtitle directives
+("clean frame, no captions, no on-screen text"), which Seedance
+requires to avoid random subtitle artifacts. raw_prompt skips this
+layer too.
+
+If you use `raw_prompt: true`, you MUST include in your prompt:
+> "clean frame, no subtitles, no captions, no on-screen text, no
+> watermark, no overlay graphics"
+
+to prevent Seedance from auto-adding subtitles.
+
+### Severity
+
+Critical. The LLM enhancer destroys 100% of structured shot intent.
+This rule supersedes R1's hardened "adjacent shots different primary
+subject" rule — without raw_prompt, R1 compliance in the user prompt
+is moot because the LLM flattens the structure before Seedance sees it.
+
+### Key citations (Phoenix codebase, 2026-04-18)
+
+- `apps/api/src/schemas/cinema_studio.py:57` — `raw_prompt: bool = False`
+- `apps/api/src/services/cinema_service.py:278-299` — branching on `raw_prompt`
+- `apps/api/src/adapters/video_providers/ark.py:127-210` — `ArkVideoProvider.translate_prompt()`
+- `apps/api/src/services/seedance_shot_llm.py:338-399` — `enhance_seedance_shot()`
+- `apps/api/tests/test_cinema_raw_mode.py:87` — confirms raw mode bypasses translate
+
+### Observed DB fields
+
+- `cinema_generations.keyword` — user's original prompt
+- `cinema_generations.secret_prompt` — LLM-rewritten version (what Seedance received)
+- `cinema_generations.prompt_mode` — "smart" (enhanced) or "raw" (verbatim)
+
+To verify enhancement happened on a past generation, query:
+```sql
+SELECT keyword, secret_prompt, prompt_mode FROM cinema_generations WHERE id = '<gid>';
+```
+
+---
+
 ## Future rules (to add as new bugs surface)
 
-- R23: Lighting direction consistency across shots
-- R24: Sound / dialogue reference sanity
-- R25: Genre-tone consistency
-- R26: Dynamic range / contrast warnings
+- R24: Lighting direction consistency across shots
+- R25: Sound / dialogue reference sanity
+- R26: Genre-tone consistency
+- R27: Dynamic range / contrast warnings
 
 ## Rule library evolution log
 
@@ -1017,4 +1102,5 @@ coherent film output.
 | v6 | R18, R19 added | 2026-04-18 drama + anime validation tests (text-only t2v): drama paper-bag-rip physics skipped (R18); anime cel-shaded style overridden by photoreal default (R19). Both critical/major failures per Gemini. |
 | v7 | R20 added | 2026-04-18 "The Drop" Phase 3 integration test: fedora+three-piece+goatee buyer description triggered Ark copyright filter, clip rejected with 255 credits sunk cost. Any iconic character archetype combination must be pre-emptively rewritten with generic descriptors. |
 | v8 | R21 added | 2026-04-18 "Courier Chronicles" regression test s6: "burner phone" + "未知来电" triggered Ark content policy (`policy_violation_output`). Distinct from R20 copyright filter. Neutralize crime-specialist vocabulary pre-emptively. |
-| **v9** | **R22 added (the most important rule so far)** | **2026-04-18 user first-viewing feedback on the 120s "Courier Chronicles" concat: "这个整体是一个故事吗?" Text-only t2v across 8 clips produced 8 different Couriers in 4 different garages and 4 different rooftops. No story. Multi-clip productions MUST use reference_image_urls; the $1 "saved" by skipping Phase C destroys the entire $13 production.** |
+| v9 | R22 added (the most important rule so far) | 2026-04-18 user first-viewing feedback on the 120s "Courier Chronicles" concat: "这个整体是一个故事吗?" Text-only t2v across 8 clips produced 8 different Couriers in 4 different garages and 4 different rooftops. No story. Multi-clip productions MUST use reference_image_urls; the $1 "saved" by skipping Phase C destroys the entire $13 production. |
+| **v10** | **R23 added (supersedes R1 in importance)** | **2026-04-18 user hypothesis confirmed via Phoenix codebase review: the Ark video provider routes prompts through Gemini Flash LLM enhancement by default, collapsing my structured `[00:XX-YY] 镜头N:` blocks into a single unified cinematic description before they reach Seedance. ALL prior single-shot "failures" (c04 isolation, drama/jazz tests, 5/8 Courier Chronicles clips, 末班车 c04) were caused by Phoenix's enhancer, not by Seedance. Fix: set `raw_prompt: true` in the API payload to bypass enhancement. This single flag is more load-bearing than R1-R22 combined because without it, the other rules are literally discarded upstream.** |
