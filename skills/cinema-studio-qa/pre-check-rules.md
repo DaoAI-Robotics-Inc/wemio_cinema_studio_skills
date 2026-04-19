@@ -1704,12 +1704,122 @@ platform has transient issues. The skill must gracefully degrade;
 
 ---
 
+## R32. Explicit Dialog Line Whitelist (MAJOR)
+
+**Added after:** 2026-04-18《Room 207》 s2 dialog test. Gemini audit
+caught an unscripted line "Mr. Sterling Rowland?" leaking into the
+clip. My prompt declared the 2 intended lines clearly but did NOT
+forbid additional lines. Seedance filled the silence with an
+improvised name-check.
+
+### What
+
+When a clip has dialog, the prompt must EXPLICITLY whitelist every
+line and forbid all others. Otherwise Seedance's joint audio-video
+generation may add improvised conversational filler.
+
+### Fix template
+
+Append this after the dialog block:
+
+```
+STRICT DIALOG CONSTRAINT: The ONLY dialog lines in this clip are:
+1. @image1 Courier: "You weren't here last week."
+2. @image2 Man: "Things changed."
+No other characters speak. Man says NOTHING except "Things changed."
+Courier says NOTHING except "You weren't here last week." No names
+are said. No greetings. No improvised lines.
+```
+
+### Detection in pre-check
+
+If prompt contains quoted dialog → check if prompt contains a
+whitelist / forbidding clause. If not → flag R32 violation, add the
+clause before submission.
+
+### Severity
+
+Major. Unscripted leaks make clips unusable for dialog-driven drama.
+
+---
+
+## R33. Explicit Shot Count Cap (MAJOR)
+
+**Added after:** 2026-04-18《Room 207》 s4 cliffhanger test. Prompt
+described exactly 3 shots. Gemini audit caught an unprompted 4th shot
+inserted mid-clip: a brief Woman speaking cutaway between Man's ECU
+and the final line. Seedance filled a perceived empty narrative
+moment with an improvised shot.
+
+### What
+
+When the prompt structures a clip into N shots, explicitly cap at N
+or Seedance may add improvised cutaways / reaction inserts / b-roll.
+
+### Fix template
+
+Append to the prompt:
+
+```
+STRICT SHOT CONSTRAINT: This clip has EXACTLY 3 shots as described
+above. No additional inserted shots, no cutaways, no reaction inserts,
+no b-roll, no flashbacks, no dream sequences. Only the 3 declared
+shots in the declared order.
+```
+
+### Severity
+
+Major. Unprompted inserted shots break timing and pacing.
+
+---
+
+## R34. Critical Props and State Instances Need Their Own Ref Images (MAJOR, extends R24)
+
+**Added after:** 2026-04-18《Room 207》 cross-clip test. R22 required
+character refs. R24 required recurring prop refs. R34 extends: when a
+prop appears in a SPECIFIC STATE that must remain consistent across
+clips (door cracked 8 inches, sleeve with blood spatter, package
+shape), generate a **state-specific reference image** and include in
+`reference_image_urls` for every clip where that state applies.
+
+### What
+
+Not just "motorcycle needs ref" (R24) but "motorcycle headlight OFF
+with Courier dismounted needs its own state-ref". The finer the state
+needs to be pinned, the more state-refs needed.
+
+### Common state-refs to generate
+
+- **Door at specific opening angle** (closed / 8 inches / half-open / full-open)
+- **Package with specific wrapping and shape** (flat box vs lumpy)
+- **Sleeve with specific blood placement** (cuff fabric 2cm below wrist)
+- **Anatomical precise state** (e.g., "bloodstain ON FABRIC, NOT on skin")
+
+### Fix template
+
+In Phase C Phase C generation:
+```bash
+# Generate door-cracked-8-inch state ref
+POST /generate-location prompt: "Motel room door cracked open
+approximately 8 inches, warm tungsten interior light spilling through
+the narrow gap onto an exterior concrete corridor. Detail shot, close
+enough to show the door frame and the gap precisely. Photorealistic."
+```
+
+Pass this ref into every clip where door state must be 8 inches.
+
+### Severity
+
+Major. Critical-state drift (door opens differently in each clip) is
+what breaks narrative continuity even when characters are consistent.
+
+---
+
 ## Future rules (to add as new bugs surface)
 
-- R32: Lighting direction consistency across shots
-- R33: Sound / dialogue reference sanity (more specific after R30 validation)
-- R34: Genre-tone consistency
-- R35: Dynamic range / contrast warnings
+- R35: Lighting direction consistency across shots
+- R36: Genre-tone consistency
+- R37: Dynamic range / contrast warnings
 
 ## Rule library evolution log
 
@@ -1730,4 +1840,5 @@ platform has transient issues. The skill must gracefully degrade;
 | v13 | R27 + R28 + R29 added | 2026-04-18 reading《Seedance 之后,AI 视频分镜只做关键帧》by 小石学长 / 西羊石 AI视频. Extracted 3 new rules: R27 (image-first pipeline for complex/emotion/rescue shots), R28 (six-field prompt skeleton 风格+景别+主体+环境+光影+质感), R29 (9-panel storyboard explosion via nano-banana to generate continuous shots in one go). |
 | v14 | R30 added (pre-emptive, pre-first-dialog-test) | 2026-04-18 user requested 1-min dialog drama as skill test. No existing rule governed cross-clip dialog coherence. R30 drafts conventions for per-clip dialog lines, tone descriptors, R23 clean-frame compatibility, voice-ref strategy, and lip-sync trigger words. Rule is draft; revise after first test reveals actual failure modes. |
 | v15 | R15 enhanced | 2026-04-18 user pre-submit question on Room 207 thriller: "4 个 clip 并行会不会跳". R15 expanded from abstract "chain vs parallel" to concrete decision matrix + partial-chain pattern + time-vs-quality tradeoffs. Added 5th/6th detection condition (progressive physical state, new detail persistence). Chose full-chain for Room 207 based on progressive door opening + blood-stain persistence across 4 clips. |
-| **v16** | **R31 added** | **2026-04-18 Room 207 chain step 2 failed: Ark compliance repeatedly returned `ark.invalidparameter.downloadfailed` on s1 extract-frame PNG. Same flow had worked earlier in the day on 末班车 + Courier Chronicles. R31 documents the fallback ladder: retry 3x → re-extract different frame → parallel + anchor fallback → Kling as alternate provider. Skill must gracefully degrade when Ark has transient issues.** |
+| v16 | R31 added | 2026-04-18 Room 207 chain step 2 failed: Ark compliance repeatedly returned `ark.invalidparameter.downloadfailed` on s1 extract-frame PNG. Same flow had worked earlier in the day on 末班车 + Courier Chronicles. R31 documents the fallback ladder: retry 3x → re-extract different frame → parallel + anchor fallback → Kling as alternate provider. Skill must gracefully degrade when Ark has transient issues. |
+| **v17** | **R32 + R33 + R34 added** | **2026-04-18 Room 207 dual-judgment audit caught 3 new failure modes not covered by R1-R31: (R32) unscripted dialog leak ("Mr. Sterling Rowland?" appeared in s2 unprompted — fix: explicit dialog whitelist + no-other-lines forbidding clause), (R33) unprompted inserted shot (s4 had a 4th Woman-speaking shot Seedance added on top of the 3 requested — fix: STRICT SHOT CONSTRAINT line + no-b-roll forbidding), (R34) state-specific props need state-refs (door at specific opening, sleeve with specific blood placement — extends R24 beyond "just have a prop ref"). All 3 are "Seedance does MORE than prompt" failure modes, distinct from the earlier "Seedance does LESS than prompt" failures.** |
