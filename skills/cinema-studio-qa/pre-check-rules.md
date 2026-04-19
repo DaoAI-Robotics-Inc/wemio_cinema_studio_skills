@@ -1771,6 +1771,33 @@ shots in the declared order.
 
 Major. Unprompted inserted shots break timing and pacing.
 
+### Known limitation — R33 does NOT block cinematic tropes
+
+**Added 2026-04-18 after Room 207 v2 dual-judgment:** R33's "no
+inserted Courier close-up / no reaction insert" prompt constraint
+FAILED to block Seedance from adding a Courier ECU reaction shot in
+s4_v2 at 7-9s. Seedance appears to treat certain cinematic tropes
+as "mandatory":
+- Dialog-delivery scenes: reaction cut from speaker to listener
+- Emotional beats: character facing camera in close-up
+- Reveal moments: the "receiving" character's face must be shown
+
+These tropes are baked into Seedance's training as grammar of cinema,
+and pre-check text like "NO Courier close-up, NO reaction insert"
+does NOT override them. Two workarounds:
+
+1. **Post-production trim** (preferred for trope-over-reaches): use
+   `cinema-studio-post/tools/trim.sh` to cut out the unwanted reaction
+   shot after generation. Cheap + reliable. This is what Path B did
+   in the Room 207 test and it worked.
+2. **Remove the speaker character from the frame entirely**: if the
+   prompt describes speaker entirely off-frame (audio only), Seedance
+   can't add their reaction shot. Trade-off: loses some dramatic impact.
+
+**Practical rule**: R33 prompt-level prohibition is **best-effort**,
+not a hard guarantee. Budget post-production trim into the auto-fix
+loop for any clip where R33 matters.
+
 ---
 
 ## R34. Critical Props and State Instances Need Their Own Ref Images (MAJOR, extends R24)
@@ -1813,13 +1840,93 @@ Pass this ref into every clip where door state must be 8 inches.
 Major. Critical-state drift (door opens differently in each clip) is
 what breaks narrative continuity even when characters are consistent.
 
+### Known limitation — R34 only locks INITIAL state, not animated state
+
+**Added 2026-04-18 after Room 207 v2 dual-judgment on s3_v2 blood
+reveal:** R34 state ref (blood on gray sleeve fabric) locked the
+initial frame correctly — at t=1s the blood IS on the fabric. But as
+the clip animated over 3 seconds, **Seedance rolled the sleeve up**
+exposing the wrist and moving the blood position onto SKIN. R34 text
+"ON FABRIC, NOT skin" held for the opening frame and then drifted.
+
+**Implication:** R34 state ref is a **spatial anchor for shot start**,
+not a **persistent constraint across all frames** of the clip. If the
+prop state must persist across animation:
+- Either keep the shot's duration short (≤ 2s) so state can't drift
+- Or lock state via a macro STILLNESS directive: "this shot is a
+  locked still frame held for 5 seconds, no animation of sleeve, no
+  wrist movement, prop position frozen per @imageN"
+- Or accept: Seedance will animate the prop's relationship to its
+  bearer; to keep prop state locked, freeze the motion around it.
+
+---
+
+## R35. Prop / State Ref Background Pollutes Main Scene (MAJOR)
+
+**Added after:** 2026-04-18 Room 207 v2 audit. When I added a "door
+cracked 8 inches" state reference (@image4) to s2/s3 clips, the
+resulting videos had the ENTIRE exterior wall texture match the door
+ref's background (blue peeling painted wood) instead of the main
+motel ref's background (cream stucco). The motel location ref got
+visually overridden by the door state ref's environment.
+
+### What
+
+Seedance blends ALL ref images' environments into the generated
+scene's visual mood. When you add a prop or state ref image, whatever
+BACKGROUND that ref image has will leak into the output scene — even
+if the ref was generated specifically for just the prop.
+
+### Fix: prop/state refs must have NEUTRAL backgrounds
+
+When generating any Phase C ref that is NOT a full scene (character
+refs, prop refs, prop-state refs), specify in the generation prompt:
+
+```
+Background: pure neutral gray or pure black studio backdrop ONLY.
+No environmental details, no walls, no floor texture, no location
+markers. The subject floats against a blank neutral backdrop. Studio
+product photography lighting.
+```
+
+This way when the ref is passed alongside a location ref,
+Seedance has no conflicting environment data — only the location ref
+contributes environment, while the prop/state ref contributes just
+its subject shape/state.
+
+### Detection
+
+Before submitting Phase C refs to compliance, `Read` each ref and check:
+is the background environmental (motel, street, garage, city)? If yes,
+regenerate with neutral backdrop prompt.
+
+### Severity
+
+Major. Can cause whole production to drift from intended location
+texture. Especially bad when you add ≥2 prop/state refs to a single
+clip's `reference_image_urls` — the props' backgrounds dominate.
+
+### Why I hit this
+
+My door ref prompt said "a door at 8 inches opening...exterior
+concrete corridor" — so the ref generated WITH an environment.
+Then when s2/s3 submitted [courier, man, motel, door, package], the
+door ref's "blue peeling concrete-corridor" visual fought with the
+motel ref's "cream stucco" visual, and Seedance picked the door's
+texture (possibly because door ref was ranked higher index / newer).
+
+Should have generated the door ref with "pure black studio backdrop,
+just the door at 8 inches opening with warm light through, no
+exterior context, no wall, no floor" — then the motel ref alone
+would provide environment.
+
 ---
 
 ## Future rules (to add as new bugs surface)
 
-- R35: Lighting direction consistency across shots
-- R36: Genre-tone consistency
-- R37: Dynamic range / contrast warnings
+- R36: Lighting direction consistency across shots
+- R37: Genre-tone consistency
+- R38: Dynamic range / contrast warnings
 
 ## Rule library evolution log
 
@@ -1841,4 +1948,5 @@ what breaks narrative continuity even when characters are consistent.
 | v14 | R30 added (pre-emptive, pre-first-dialog-test) | 2026-04-18 user requested 1-min dialog drama as skill test. No existing rule governed cross-clip dialog coherence. R30 drafts conventions for per-clip dialog lines, tone descriptors, R23 clean-frame compatibility, voice-ref strategy, and lip-sync trigger words. Rule is draft; revise after first test reveals actual failure modes. |
 | v15 | R15 enhanced | 2026-04-18 user pre-submit question on Room 207 thriller: "4 个 clip 并行会不会跳". R15 expanded from abstract "chain vs parallel" to concrete decision matrix + partial-chain pattern + time-vs-quality tradeoffs. Added 5th/6th detection condition (progressive physical state, new detail persistence). Chose full-chain for Room 207 based on progressive door opening + blood-stain persistence across 4 clips. |
 | v16 | R31 added | 2026-04-18 Room 207 chain step 2 failed: Ark compliance repeatedly returned `ark.invalidparameter.downloadfailed` on s1 extract-frame PNG. Same flow had worked earlier in the day on 末班车 + Courier Chronicles. R31 documents the fallback ladder: retry 3x → re-extract different frame → parallel + anchor fallback → Kling as alternate provider. Skill must gracefully degrade when Ark has transient issues. |
-| **v17** | **R32 + R33 + R34 added** | **2026-04-18 Room 207 dual-judgment audit caught 3 new failure modes not covered by R1-R31: (R32) unscripted dialog leak ("Mr. Sterling Rowland?" appeared in s2 unprompted — fix: explicit dialog whitelist + no-other-lines forbidding clause), (R33) unprompted inserted shot (s4 had a 4th Woman-speaking shot Seedance added on top of the 3 requested — fix: STRICT SHOT CONSTRAINT line + no-b-roll forbidding), (R34) state-specific props need state-refs (door at specific opening, sleeve with specific blood placement — extends R24 beyond "just have a prop ref"). All 3 are "Seedance does MORE than prompt" failure modes, distinct from the earlier "Seedance does LESS than prompt" failures.** |
+| v17 | R32 + R33 + R34 added | 2026-04-18 Room 207 dual-judgment audit caught 3 new failure modes not covered by R1-R31: (R32) unscripted dialog leak ("Mr. Sterling Rowland?" appeared in s2 unprompted — fix: explicit dialog whitelist + no-other-lines forbidding clause), (R33) unprompted inserted shot (s4 had a 4th Woman-speaking shot Seedance added on top of the 3 requested — fix: STRICT SHOT CONSTRAINT line + no-b-roll forbidding), (R34) state-specific props need state-refs (door at specific opening, sleeve with specific blood placement — extends R24 beyond "just have a prop ref"). All 3 are "Seedance does MORE than prompt" failure modes, distinct from the earlier "Seedance does LESS than prompt" failures. |
+| **v18** | **R33/R34 limitations documented + R35 added** | **2026-04-18 Room 207 v2 second audit: R32 held 3/3 ✓. R33 FAILED on s4 (Seedance re-inserted a Courier reaction shot as cinematic-trope grammar that prompt-level "NO inserted shot" couldn't block) — R33 is best-effort not guaranteed; post-production trim is the reliable fallback. R34 locked initial frame but sleeve animated up and blood moved fabric→skin; R34 is initial-state anchor, not persistent-constraint. R35 NEW: prop/state refs must have neutral backgrounds because non-neutral ref backgrounds leak into the main scene — door-ref had "blue exterior concrete" which overrode the motel cream-stucco ref on s2/s3. Workflow rule: Phase C ref generation must specify "pure neutral gray or black studio backdrop" for all non-location refs. |
