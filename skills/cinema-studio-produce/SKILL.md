@@ -81,7 +81,13 @@ ask ≤3 clarifying questions then proceed.
    anime required OR user explicitly asks for Kling's `multi_shots` /
    `negative_prompt` features.
 
-### Phase C — Assets
+### Phase C — Assets (MANDATORY per R22 for multi-clip productions)
+
+**Do NOT skip this phase for multi-clip productions.** R22 documents
+the regression proof: skipping ref-image generation destroys narrative
+coherence. 8 text-only clips = 8 different Couriers in 8 different
+gargages. The "$1 saved" destroys the $13 production.
+
 For each character without a user-supplied reference image:
 - `POST /api/cinema-studio/generate-character` with visual_description
 - Poll until `status: done`
@@ -92,6 +98,9 @@ For each character without a user-supplied reference image:
 For each location:
 - Generate scene image if absent
 - Run `scene_blueprint.sh` → save `scene_<id>.blueprint.json`
+
+Maintain `ref_map.json` canonical ordering; every Phase G clip payload
+must pass these URLs in `reference_image_urls`.
 
 ### Phase D — Budget gate (MANDATORY user checkpoint)
 

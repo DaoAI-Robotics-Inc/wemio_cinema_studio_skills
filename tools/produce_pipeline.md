@@ -114,7 +114,16 @@ can resume / retry at any phase boundary.
 - Output: genre + style profile dict used by Phase E.
 - **On low confidence:** ask user which genre (with 2-3 top candidates).
 
-### Phase C: Assets
+### Phase C: Assets — MANDATORY for multi-clip productions (R22)
+
+**If production has ≥2 clips with any recurring character OR recurring
+location, Phase C is NON-NEGOTIABLE.** Skipping Phase C and generating
+via text-only t2v produces incoherent output where each clip has a
+different imagined version of the character + location. See R22 for
+2026-04-18 "Courier Chronicles" regression proof.
+
+Procedure:
+
 - For each character WITHOUT an existing ref:
   - `POST /api/cinema-studio/generate-character` with visual_description
   - Wait for `status: done`, get image_url
@@ -123,11 +132,29 @@ can resume / retry at any phase boundary.
 - For each location:
   - If no scene ref image: `POST /api/cinema-studio/generate-scene`
   - Run `tools/scene_blueprint.sh` against the image
-  - Save blueprint JSON
+  - Save blueprint JSON + register to compliance
 - Claude reads every ref image (Phase 0a from cinema-studio-qa skill).
 - Output: `/tmp/<prod_id>/refs/` directory with downloaded images +
   `ref_facts.md`.
+
+**Output must include `ref_map.json`** listing the canonical ordering:
+```json
+{
+  "courier": "https://...courier_ref.png",
+  "buyer": "https://...buyer_ref.png",
+  "underground_garage": "https://...garage_ref.png",
+  "rooftop": "https://...rooftop_ref.png"
+}
+```
+
+Every clip in Phase G must include these refs in its
+`reference_image_urls` array (with clip-specific order: usually
+characters-in-this-scene first, then location last).
+
 - **Time cost:** 30s-2min per asset generated.
+- **Credit cost:** ~30-50 credits per character ref (image gen) +
+  ~30-50 credits per location ref. For a 4-char 2-location production:
+  ~250 credits (~$1.25). This is **mandatory overhead**, not optional.
 
 ### Phase D: Budget
 - Run `tools/budget_estimator.py` with production params.

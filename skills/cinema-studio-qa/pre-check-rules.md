@@ -916,12 +916,94 @@ credits to discover the filter.
 
 ---
 
+## R22. Multi-Clip Productions MUST Use Reference Images (CRITICAL)
+
+**Added after:** 2026-04-18 "Courier Chronicles" 8-clip regression
+test. The 120s film concatenated 8 individually-generated clips via
+text-only t2v (no `reference_image_urls`). User's first-viewing
+feedback: "这个整体是一个故事吗?怎么感觉每个镜头都是不太一样的呢?
+我没看出这个是什么故事。"
+
+Verified: s1 Courier was a long-ponytail woman on a sport motorcycle;
+s5 "Courier" was a short-haired figure (possibly different gender) on
+a completely different classic motorcycle. Two locations that should
+have been the same garage / same rooftop instead rendered as 4+
+independent imaginations.
+
+### What
+
+When a production has >1 clip and features any recurring character,
+location, or prop, **the same `reference_image_urls` MUST be passed
+to every clip's `/generate-video` payload**. Text-only t2v without refs
+causes Seedance (and Kling) to regenerate each clip's character from
+scratch — they will have different faces, different body types,
+different clothing fit each time, even with identical text descriptions.
+
+Same applies to locations. "Underground parking garage with graffiti"
+text will render as 4 totally different garages across 4 clips.
+
+### Detection
+
+Before Phase G generation, ensure for each clip:
+
+1. Every **named character** appearing in the clip has a
+   `reference_image_urls` entry pointing to the master character ref
+   image (generated in Phase C, or user-supplied).
+2. **Location ref image** is included in `reference_image_urls` for
+   any recurring location (at minimum, the first time the location
+   appears; subsequent clips in the same location either reuse the
+   same location ref OR use a frame extracted from the previous clip
+   in the same location via `/extract-frame` per R15).
+3. If the clip uses multiple refs, the `@图片N` syntax in the prompt
+   maps to `reference_image_urls[N-1]` by index. Be strict about the
+   order.
+
+### Fix when caught in pre-check
+
+If prompt has no `reference_image_urls` but the production has ≥2
+clips with recurring character/location:
+
+1. **Block submission**. Do NOT let the clip go through — the output
+   will not be usable as part of a coherent film.
+2. **Go back to Phase C**: generate character ref via
+   `POST /generate-character`, location ref via `POST /generate-scene`
+   (or similar for the provider).
+3. **Run compliance** (`POST /api/compliance/check-by-url`) for each
+   ref. Poll until compliant.
+4. **Re-submit Phase G** with refs in every payload.
+
+### Cost implication
+
+Phase C adds cost for ref generation (~30-50 credits per ref × 2-5
+refs = ~100-250 credits), but SAVES the 2000+ credits that a
+regenerated-due-to-incoherence production would cost. Ref generation
+is mandatory overhead for any multi-clip film, not an optional step.
+
+### Observed from Courier Chronicles
+
+- Text-only 8 clips at $12.93 produced a visually stunning but
+  narratively incoherent "mood reel" not a short film.
+- Estimated added cost for proper Phase C: ~200 credits (~$1) for
+  2 characters + 2 locations. Total would be ~$14 for a coherent
+  120s film.
+- Savings from skipping Phase C: ~$1. Cost of unusable output:
+  entire $13. Net: skipping Phase C is always a loss.
+
+### Severity
+
+**Critical**. Multi-clip production without character/location refs
+produces artistically strong but narratively broken output. This is
+not a style preference — it's a non-negotiable requirement for
+coherent film output.
+
+---
+
 ## Future rules (to add as new bugs surface)
 
-- R22: Lighting direction consistency across shots
-- R23: Sound / dialogue reference sanity
-- R24: Genre-tone consistency
-- R25: Dynamic range / contrast warnings
+- R23: Lighting direction consistency across shots
+- R24: Sound / dialogue reference sanity
+- R25: Genre-tone consistency
+- R26: Dynamic range / contrast warnings
 
 ## Rule library evolution log
 
@@ -934,4 +1016,5 @@ credits to discover the filter.
 | v5 | R17 added | User observation during《末班车》v5: Woman hands file to man but still carries file out. Seedance doesn't "update" prop ownership after exchange — phantom duplicate prop persists on giver. Needs double-state-update language. |
 | v6 | R18, R19 added | 2026-04-18 drama + anime validation tests (text-only t2v): drama paper-bag-rip physics skipped (R18); anime cel-shaded style overridden by photoreal default (R19). Both critical/major failures per Gemini. |
 | v7 | R20 added | 2026-04-18 "The Drop" Phase 3 integration test: fedora+three-piece+goatee buyer description triggered Ark copyright filter, clip rejected with 255 credits sunk cost. Any iconic character archetype combination must be pre-emptively rewritten with generic descriptors. |
-| **v8** | **R21 added** | **2026-04-18 "Courier Chronicles" regression test s6: "burner phone" + "未知来电" triggered Ark content policy (`policy_violation_output`). Distinct from R20 copyright filter. Neutralize crime-specialist vocabulary pre-emptively.** |
+| v8 | R21 added | 2026-04-18 "Courier Chronicles" regression test s6: "burner phone" + "未知来电" triggered Ark content policy (`policy_violation_output`). Distinct from R20 copyright filter. Neutralize crime-specialist vocabulary pre-emptively. |
+| **v9** | **R22 added (the most important rule so far)** | **2026-04-18 user first-viewing feedback on the 120s "Courier Chronicles" concat: "这个整体是一个故事吗?" Text-only t2v across 8 clips produced 8 different Couriers in 4 different garages and 4 different rooftops. No story. Multi-clip productions MUST use reference_image_urls; the $1 "saved" by skipping Phase C destroys the entire $13 production.** |
